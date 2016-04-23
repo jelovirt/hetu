@@ -1,7 +1,7 @@
 [package]
 name = "hetu"
-description = "Simple crate for validating and generating Finnish Personal Identity Code (HETU)"
-version = "0.1.0"
+description = "Simple crate for validating and generating Finnish Personal Identity Code/SSN (HETU)"
+version = "0.1.1"
 authors = ["Jarno Elovirta <jarno@elovirta.com>"]
 repository = "https://github.com/jelovirt/hetu"
 license = "MIT"

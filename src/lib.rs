@@ -5,9 +5,9 @@ use rand::Rng;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ssn {
-    day: u32,
-    month: u32,
-    year: u32,
+    day: usize,
+    month: usize,
+    year: usize,
     gender: Gender
 }
 
@@ -34,7 +34,7 @@ pub fn is_valid(ssn : &str) -> Result<Ssn, Error> {
         _ => return Err(Error {})
     };
 
-    let date: u32 = match ssn[0..6].parse::<u32>() {
+    let date: usize = match ssn[0..6].parse::<usize>() {
         Ok(n) => n,
         Err(_) => return Err(Error {})
     };
@@ -57,7 +57,7 @@ pub fn is_valid(ssn : &str) -> Result<Ssn, Error> {
         return Err(Error {});
     }
 
-    let identifier: u32 = match ssn[7..10].parse::<u32>() {
+    let identifier: usize = match ssn[7..10].parse::<usize>() {
         Ok(n) => n,
         Err(_) => return Err(Error {})
     };
@@ -92,12 +92,13 @@ pub fn generate() -> String {
         20 => "A",
         _ => panic!()
     };
-    let identifier = rng.gen_range(200, 900);
-    let checksum = CHECKSUM_TABLE[251076155 % 31];
-    format!("{:02.}{:02.}{:02.}{}{:03.}{}", day, month, year / 100, separator, identifier, checksum)
+    let identifier = rng.gen_range(002, 900);
+    let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
+    let checksum = CHECKSUM_TABLE[nums % 31];
+    format!("{:02.}{:02.}{:02.}{}{:03.}{}", day, month, year % 100, separator, identifier, checksum)
 }
 
-fn days_in_month(month: u32, year: u32) -> u32 {
+fn days_in_month(month: usize, year: usize) -> usize {
     match month {
       1 => 31,
       2 => if is_leap_year(year) { 29 } else { 28 },
@@ -127,7 +128,7 @@ fn checksum(ssn : &str) -> char {
     CHECKSUM_TABLE[nums % 31]
 }
 
-fn is_leap_year(year: u32) -> bool {
+fn is_leap_year(year: usize) -> bool {
     ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)
 }
 
@@ -152,4 +153,10 @@ fn test_is_valid() {
     assert!(!is_valid("010114A173M ").is_ok(), "Should fail when given SSN longer than 11 chars, bogus in the end");
     assert!(!is_valid(" 010114A173M").is_ok(), "Should fail when given SSN longer than 11 chars, bogus in the beginning");
     assert!(is_valid("290200A248A").is_ok(), "Should pass when given valid finnishSSN with leap year, divisible by 100 and by 400");
+}
+
+#[test]
+fn test_generate() {
+    let ssn = generate();
+    assert!(is_valid(&ssn).is_ok());
 }
