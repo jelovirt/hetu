@@ -1,0 +1,11 @@
+[package]
+name = "hetu"
+version = "0.1.0"
+authors = ["Jarno Elovirta <jarno@elovirta.com>"]
+
+[lib]
+name = "hetu"
+path = "src/lib.rs"
+
+[dependencies]
+rand = "0.3.14"
