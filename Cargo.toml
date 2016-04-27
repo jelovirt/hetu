@@ -4,6 +4,8 @@ description = "Simple crate for validating and generating Finnish Personal Ident
 version = "0.2.0"
 authors = ["Jarno Elovirta <jarno@elovirta.com>"]
 repository = "https://github.com/jelovirt/hetu"
+readme = "README.md"
+keywords = ["hetu", "ssn"]
 license = "MIT"
 
 [lib]

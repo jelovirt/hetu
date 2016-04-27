@@ -1,4 +1,4 @@
-# HETU Validator and generator in Rust
+# HETU validator and generator in Rust
 
 Simple crate for validating and generating Finnish Personal Identity Code (HETU).
 
@@ -16,10 +16,10 @@ To validate
 
 ```rust
 extern crate hetu;
-use hetu::is_valid;
+use hetu::Ssn::parse;
 
 pub fn main() {
-  if is_valid("121212-121D").is_ok() {
+  if parse("121212-121D").is_ok() {
     println!("Valid HETU")
   } else {
     println!("Invalid")
@@ -31,7 +31,7 @@ To generate
 
 ```rust
 extern crate hetu;
-use hetu::generate;
+use hetu::Ssn::generate;
 
 pub fn main() {
   println!("{}", generate())
