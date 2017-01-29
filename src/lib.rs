@@ -157,7 +157,7 @@ impl<'a> fmt::Display for ParseError<'a> {
             ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
             ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
             ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
-            ParseError::Checksum(ref desc, _, _) => write!(f, "Invalid checksum: {}", *desc),
+            ParseError::Checksum(_, _, _) => write!(f, "Invalid checksum"),
         }
     }
 }
