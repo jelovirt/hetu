@@ -225,27 +225,27 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        assert!(Ssn::parse("").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given empty String");
-        assert!(Ssn::parse("301398-1233").unwrap_err() == ParseError::Month,
-                "fail when given birthdate with month out of bounds");
-        assert!(Ssn::parse("320198-123P").unwrap_err() == ParseError::Day,
-                "fail when given birthdate with date out of bounds in January");
-        assert!(Ssn::parse("290299-123U").unwrap_err() == ParseError::Day,
-                "fail when given birthdate with date out of bounds in February, non leap year");
-        assert!(Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day,
-                "fail when given birth date with date out of bounds in February, a leap year");
-        assert!(Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("301398-1233").unwrap_err() == ParseError::Month("Invalid month number"),
+        "fail when given birthdate with month out of bounds");
+        assert!(Ssn::parse("320198-123P").unwrap_err() == ParseError::Day("Invalid day number"),
+        "fail when given birthdate with date out of bounds in January");
+        assert!(Ssn::parse("290299-123U").unwrap_err() == ParseError::Day("Invalid day number"),
+        "fail when given birthdate with date out of bounds in February, non leap year");
+        assert!(Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day("Invalid day number"),
+        "fail when given birth date with date out of bounds in February, a leap year");
+        assert!(Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax("Date not integer"),
                 "fail when given birth date with alphabets");
-        assert!(Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax("Invalid separator"),
                 "fail when given invalid separator chars");
-        assert!(Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given too long date");
-        assert!(Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given too short date");
-        assert!(Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given too long checksum part");
-        assert!(Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given too long checksum part");
         assert_eq!(Ssn::parse("010195+433X").unwrap(),
                    Ssn {
@@ -276,7 +276,7 @@ mod tests {
                        year: 1996,
                        gender: Gender::Female,
                    });
-        assert!(Ssn::parse("290200-101P").unwrap_err() == ParseError::Day,
+        assert!(Ssn::parse("290200-101P").unwrap_err() == ParseError::Day("Invalid day number"),
                 "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400");
         // pass when given valid finnishSSN with leap year, divisible by 100 and by 400
         assert_eq!(Ssn::parse("290200A248A").unwrap(),
@@ -286,9 +286,9 @@ mod tests {
                        year: 2000,
                        gender: Gender::Female,
                    });
-        assert!(Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given SSN longer than 11 chars, bogus in the end");
-        assert!(Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax,
+        assert!(Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax("Invalid length"),
                 "fail when given SSN longer than 11 chars, bogus in the beginning");
     }
 
