@@ -12,11 +12,12 @@ pub struct Ssn {
     pub year: usize,
     pub gender: Gender,
 }
+
 impl Ssn {
     /// Parse HETU.
     pub fn parse(ssn: &str) -> Result<Ssn, ParseError> {
         if ssn.len() != 11 {
-            return Err(ParseError::Syntax);
+            return Err(ParseError::Syntax("Invalid length"));
         }
         let chars: Vec<char> = ssn.chars().collect();
 
@@ -25,17 +26,17 @@ impl Ssn {
             '+' => (),
             '-' => (),
             'A' => (),
-            _ => return Err(ParseError::Syntax),
+            _ => return Err(ParseError::Syntax("Invalid separator")),
         };
 
         let date: usize = match ssn[0..6].parse::<usize>() {
             Ok(n) => n,
-            Err(_) => return Err(ParseError::Syntax),
+            Err(_) => return Err(ParseError::Syntax("Date not integer")),
         };
 
         let month = date % 10000 / 100;
         if month < 1 || month > 12 {
-            return Err(ParseError::Month);
+            return Err(ParseError::Month("Invalid month number"));
         }
 
         let year = date % 100 +
@@ -43,26 +44,26 @@ impl Ssn {
             '+' => 1800,
             '-' => 1900,
             'A' => 2000,
-            _ => return Err(ParseError::Syntax),
+            _ => return Err(ParseError::Syntax("Invalid separator")),
         };
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10000;
         if day < 1 || day > days_in_month {
-            return Err(ParseError::Day);
+            return Err(ParseError::Day("Invalid day number"));
         }
 
         let identifier: usize = match ssn[7..10].parse::<usize>() {
             Ok(n) => n,
-            Err(_) => return Err(ParseError::Identifier),
+            Err(_) => return Err(ParseError::Identifier("Invalid identifier")),
         };
         if identifier < 002 || identifier > 899 {
-            return Err(ParseError::Identifier);
+            return Err(ParseError::Identifier("Invalid identifier number"));
         }
 
         let checksum = checksum(&ssn);
         if checksum != chars[10] {
-            return Err(ParseError::Checksum);
+            return Err(ParseError::Checksum("Incorrect checksum"));
         }
 
         let gender: Gender = if identifier % 2 == 0 {
@@ -139,46 +140,42 @@ pub enum Gender {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParseError {
-    Syntax,
-    Day,
-    Month,
-    Year,
-    Identifier,
-    Checksum,
+pub enum ParseError<'a> {
+    Syntax(&'a str),
+    Day(&'a str),
+    Month(&'a str),
+    Year(&'a str),
+    Identifier(&'a str),
+    Checksum(&'a str),
 }
-impl fmt::Display for ParseError {
+
+impl<'a> fmt::Display for ParseError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            // Both underlying errors already impl `Display`, so we defer to
-            // their implementations.
-            // ParseError::Io(ref err) => write!(f, "IO error: {}", err),
-            // ParseError::Parse(ref err) => write!(f, "Parse error: {}", err),
-            _ => write!(f, "Parse error"),
+            ParseError::Syntax(ref desc) => write!(f, "Invalid syntax: {}", *desc),
+            ParseError::Day(ref desc) => write!(f, "Invalid day: {}", desc),
+            ParseError::Month(ref desc) => write!(f, "Invalid month: {}", *desc),
+            ParseError::Year(ref desc) => write!(f, "Invalid year: {}", *desc),
+            ParseError::Identifier(ref desc) => write!(f, "Invalid identifier: {}", *desc),
+            ParseError::Checksum(ref desc) => write!(f, "Invalid checksum: {}", *desc),
         }
     }
 }
-impl error::Error for ParseError {
-    fn description(&self) -> &str {
-        // Both underlying errors already impl `Error`, so we defer to their
-        // implementations.
+
+impl<'a> error::Error for ParseError<'a> {
+    fn description(& self) -> &str {
         match *self {
-            // ParseError::Io(ref err) => err.description(),
-            // ParseError::Parse(ref err) => err.description(),
-            _ => "Parse error",
+            ParseError::Syntax(_) => "Invalid syntax",
+            ParseError::Day(_) => "Invalid day",
+            ParseError::Month(_) => "Invalid month",
+            ParseError::Year(_) => "Invalid year",
+            ParseError::Identifier(_) => "Invalid identifier",
+            ParseError::Checksum(_) => "Invalid checksum",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            // N.B. Both of these implicitly cast `err` from their concrete
-            // types (either `&io::Error` or `&num::ParseIntError`)
-            // to a trait object `&Error`. This works because both error types
-            // implement `Error`.
-            // ParseError::Io(ref err) => Some(err),
-            // ParseError::Parse(ref err) => Some(err),
-            _ => None,
-        }
+        None
     }
 }
 

@@ -12,7 +12,8 @@ Add this to your `Cargo.toml`
 [dependencies.hetu]
 git = "https://github.com/jelovirt/hetu.git"
 ```
-To validate
+
+To validate:
 
 ```rust
 extern crate hetu;
@@ -27,7 +28,7 @@ pub fn main() {
 }
 ```
 
-To generate
+To generate:
 
 ```rust
 extern crate hetu;
