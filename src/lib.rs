@@ -17,7 +17,7 @@ impl Ssn {
     /// Parse HETU.
     pub fn parse(ssn: &str) -> Result<Ssn, ParseError> {
         if ssn.len() != 11 {
-            return Err(ParseError::Syntax("Invalid length"));
+            return Err(ParseError::Syntax("Invalid length", 0, ssn.len()));
         }
         let chars: Vec<char> = ssn.chars().collect();
 
@@ -26,17 +26,17 @@ impl Ssn {
             '+' => (),
             '-' => (),
             'A' => (),
-            _ => return Err(ParseError::Syntax("Invalid separator")),
+            _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
         };
 
         let date: usize = match ssn[0..6].parse::<usize>() {
             Ok(n) => n,
-            Err(_) => return Err(ParseError::Syntax("Date not integer")),
+            Err(_) => return Err(ParseError::Syntax("Date not integer", 0, 6)),
         };
 
         let month = date % 10000 / 100;
         if month < 1 || month > 12 {
-            return Err(ParseError::Month("Invalid month number"));
+            return Err(ParseError::Month("Invalid month number", 2, 4));
         }
 
         let year = date % 100 +
@@ -44,26 +44,26 @@ impl Ssn {
             '+' => 1800,
             '-' => 1900,
             'A' => 2000,
-            _ => return Err(ParseError::Syntax("Invalid separator")),
+            _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
         };
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10000;
         if day < 1 || day > days_in_month {
-            return Err(ParseError::Day("Invalid day number"));
+            return Err(ParseError::Day("Invalid day number", 0, 2));
         }
 
         let identifier: usize = match ssn[7..10].parse::<usize>() {
             Ok(n) => n,
-            Err(_) => return Err(ParseError::Identifier("Invalid identifier")),
+            Err(_) => return Err(ParseError::Identifier("Invalid identifier", 7, 10)),
         };
         if identifier < 002 || identifier > 899 {
-            return Err(ParseError::Identifier("Invalid identifier number"));
+            return Err(ParseError::Identifier("Invalid identifier number", 10, 11));
         }
 
         let checksum = checksum(&ssn);
         if checksum != chars[10] {
-            return Err(ParseError::Checksum("Incorrect checksum"));
+            return Err(ParseError::Checksum("Incorrect checksum", 10, 11));
         }
 
         let gender: Gender = if identifier % 2 == 0 {
@@ -141,41 +141,69 @@ pub enum Gender {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParseError<'a> {
-    Syntax(&'a str),
-    Day(&'a str),
-    Month(&'a str),
-    Year(&'a str),
-    Identifier(&'a str),
-    Checksum(&'a str),
+    Syntax(&'a str, usize, usize),
+    Day(&'a str, usize, usize),
+    Month(&'a str, usize, usize),
+    Year(&'a str, usize, usize),
+    Identifier(&'a str, usize, usize),
+    Checksum(&'a str, usize, usize),
 }
 
 impl<'a> fmt::Display for ParseError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ParseError::Syntax(ref desc) => write!(f, "Invalid syntax: {}", *desc),
-            ParseError::Day(ref desc) => write!(f, "Invalid day: {}", desc),
-            ParseError::Month(ref desc) => write!(f, "Invalid month: {}", *desc),
-            ParseError::Year(ref desc) => write!(f, "Invalid year: {}", *desc),
-            ParseError::Identifier(ref desc) => write!(f, "Invalid identifier: {}", *desc),
-            ParseError::Checksum(ref desc) => write!(f, "Invalid checksum: {}", *desc),
+            ParseError::Syntax(ref desc, _, _) => write!(f, "Invalid syntax: {}", *desc),
+            ParseError::Day(ref desc, _, _) => write!(f, "Invalid day: {}", desc),
+            ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
+            ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
+            ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
+            ParseError::Checksum(ref desc, _, _) => write!(f, "Invalid checksum: {}", *desc),
         }
     }
 }
 
 impl<'a> error::Error for ParseError<'a> {
-    fn description(& self) -> &str {
+    fn description(&self) -> &str {
         match *self {
-            ParseError::Syntax(_) => "Invalid syntax",
-            ParseError::Day(_) => "Invalid day",
-            ParseError::Month(_) => "Invalid month",
-            ParseError::Year(_) => "Invalid year",
-            ParseError::Identifier(_) => "Invalid identifier",
-            ParseError::Checksum(_) => "Invalid checksum",
+            ParseError::Syntax(_, _, _) => "Invalid syntax",
+            ParseError::Day(_, _, _) => "Invalid day",
+            ParseError::Month(_, _, _) => "Invalid month",
+            ParseError::Year(_, _, _) => "Invalid year",
+            ParseError::Identifier(_, _, _) => "Invalid identifier",
+            ParseError::Checksum(_, _, _) => "Invalid checksum",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         None
+    }
+}
+
+pub trait ErrorIndexRange {
+    fn start(&self) -> usize;
+    fn end(&self) -> usize;
+}
+
+impl<'a> ErrorIndexRange for ParseError<'a> {
+    fn start(&self) -> usize {
+        match *self {
+            ParseError::Syntax(_, start, _) => start,
+            ParseError::Day(_, start, _) => start,
+            ParseError::Month(_, start, _) => start,
+            ParseError::Year(_, start, _) => start,
+            ParseError::Identifier(_, start, _) => start,
+            ParseError::Checksum(_, start, _) => start,
+        }
+    }
+    fn end(&self) -> usize {
+        match *self {
+            ParseError::Syntax(_, _, end) => end,
+            ParseError::Day(_, _, end) => end,
+            ParseError::Month(_, _, end) => end,
+            ParseError::Year(_, _, end) => end,
+            ParseError::Identifier(_, _, end) => end,
+            ParseError::Checksum(_, _, end) => end,
+        }
     }
 }
 
@@ -225,27 +253,37 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        assert!(Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
                 "fail when given empty String");
-        assert!(Ssn::parse("301398-1233").unwrap_err() == ParseError::Month("Invalid month number"),
-        "fail when given birthdate with month out of bounds");
-        assert!(Ssn::parse("320198-123P").unwrap_err() == ParseError::Day("Invalid day number"),
-        "fail when given birthdate with date out of bounds in January");
-        assert!(Ssn::parse("290299-123U").unwrap_err() == ParseError::Day("Invalid day number"),
-        "fail when given birthdate with date out of bounds in February, non leap year");
-        assert!(Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day("Invalid day number"),
-        "fail when given birth date with date out of bounds in February, a leap year");
-        assert!(Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax("Date not integer"),
+        assert!(Ssn::parse("301398-1233").unwrap_err() ==
+                ParseError::Month("Invalid month number", 2, 4),
+                "fail when given birthdate with month out of bounds");
+        assert!(Ssn::parse("320198-123P").unwrap_err() ==
+                ParseError::Day("Invalid day number", 0, 2),
+                "fail when given birthdate with date out of bounds in January");
+        assert!(Ssn::parse("290299-123U").unwrap_err() ==
+                ParseError::Day("Invalid day number", 0, 2),
+                "fail when given birthdate with date out of bounds in February, non leap year");
+        assert!(Ssn::parse("300204-123Y").unwrap_err() ==
+                ParseError::Day("Invalid day number", 0, 2),
+                "fail when given birth date with date out of bounds in February, a leap year");
+        assert!(Ssn::parse("0101AA-123A").unwrap_err() ==
+                ParseError::Syntax("Date not integer", 0, 6),
                 "fail when given birth date with alphabets");
-        assert!(Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax("Invalid separator"),
+        assert!(Ssn::parse("010195_433X").unwrap_err() ==
+                ParseError::Syntax("Invalid separator", 6, 7),
                 "fail when given invalid separator chars");
-        assert!(Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("01011995+433X").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 13),
                 "fail when given too long date");
-        assert!(Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("01015+433X").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 10),
                 "fail when given too short date");
-        assert!(Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("010195+4433X").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 12),
                 "fail when given too long checksum part");
-        assert!(Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("010195+33X").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 10),
                 "fail when given too long checksum part");
         assert_eq!(Ssn::parse("010195+433X").unwrap(),
                    Ssn {
@@ -276,7 +314,8 @@ mod tests {
                        year: 1996,
                        gender: Gender::Female,
                    });
-        assert!(Ssn::parse("290200-101P").unwrap_err() == ParseError::Day("Invalid day number"),
+        assert!(Ssn::parse("290200-101P").unwrap_err() ==
+                ParseError::Day("Invalid day number", 0, 2),
                 "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400");
         // pass when given valid finnishSSN with leap year, divisible by 100 and by 400
         assert_eq!(Ssn::parse("290200A248A").unwrap(),
@@ -286,9 +325,11 @@ mod tests {
                        year: 2000,
                        gender: Gender::Female,
                    });
-        assert!(Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse("010114A173M ").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 12),
                 "fail when given SSN longer than 11 chars, bogus in the end");
-        assert!(Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax("Invalid length"),
+        assert!(Ssn::parse(" 010114A173M").unwrap_err() ==
+                ParseError::Syntax("Invalid length", 0, 12),
                 "fail when given SSN longer than 11 chars, bogus in the beginning");
     }
 
