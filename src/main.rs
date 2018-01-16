@@ -1,25 +1,33 @@
 extern crate hetu;
 
 use hetu::Ssn;
-use hetu::Gender;
+use hetu::SsnPattern;
 use hetu::ParseError;
 use hetu::ErrorIndexRange;
 use std::env;
+use std::process;
 
 pub fn main() {
-    if env::args().len() == 1 {
-        println!("{}",
-                 Ssn::generate_by_pattern(&Ssn {
-                     year: 1976,
-                     month: 10,
-                     day: 25,
-                     gender: Gender::Female,
-                 }));
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() > 1 && &args[0] == "-p" {
+        match SsnPattern::parse(&args[1]) {
+            Err(ref err) => {
+                eprintln!("Error: {}\n\n  {}\n  {}", err, &args[1], index_arrows(err));
+                process::exit(1)
+            }
+            Ok(pattern) => println!("{}", Ssn::generate_by_pattern(&pattern))
+        }
+    } else if args.len() == 0 {
+        let pattern = SsnPattern::new();
+        println!("{}", Ssn::generate_by_pattern(&pattern));
     } else {
-        let ssn: String = env::args().skip(1).next().unwrap();
+        let ssn: &String = &args[0];
         match Ssn::parse(&ssn) {
             Ok(_) => (),
-            Err(ref err) => println!("Error: {}\n\n  {}\n  {}", err, ssn, index_arrows(err)),
+            Err(ref err) => {
+                eprintln!("Error: {}\n\n  {}\n  {}", err, &ssn, index_arrows(err));
+                process::exit(1)
+            }
         }
     }
 }
