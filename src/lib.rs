@@ -106,7 +106,7 @@ impl Ssn {
     }
 
     /// Generate HETU with matching fields.
-    pub fn generate_by_pattern(pattern: &SsnPattern) -> String {
+    pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
         let mut rng = rand::thread_rng();
 
         let separator = pattern.sep
@@ -116,7 +116,7 @@ impl Ssn {
                 'A' => 2,
                 _ => panic!(),
             })
-            .unwrap_or(rng.gen_range(0, 4)) as usize;
+            .unwrap_or(rng.gen_range(0, 3)) as usize;
         let y1 = pattern.y1.unwrap_or(rng.gen_range(0, 10)) as usize;
         let y2 = pattern.y2.unwrap_or(rng.gen_range(0, 10)) as usize;
         let year = (1800 + separator * 100) + y1 * 10 + y2;
@@ -136,14 +136,38 @@ impl Ssn {
         let d2 = pattern.d2.unwrap_or(rng.gen_range(0, 10)) as usize;
         let day = d1 * 10 + d2;
 
-        let i1 = pattern.i1.unwrap_or(rng.gen_range(0, 10)) as usize;
-        let i2 = pattern.i2.unwrap_or(rng.gen_range(0, 10)) as usize;
-        let i3 = pattern.i3.unwrap_or(rng.gen_range(0, 10)) as usize;
-        let identifier = i1 * 100 + i2 * 10 + i3;
-        let nums = day * 10000000 + month * 100000 +
-            (year % 100) * 1000 + identifier;
-        let checksum = CHECKSUM_TABLE[nums % 31];
-        format!("{:02.}{:02.}{:02.}{}{:03.}{}",
+        let (identifier, checksum) = if pattern.check.is_some() {
+            let res = || -> Option<(usize, char)> {
+                let exp = pattern.check.unwrap();
+                for i1 in pattern.i1.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
+                    for i2 in pattern.i2.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
+                        for i3 in pattern.i3.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
+                            let identifier: usize = i1 as usize * 100 + i2 as usize * 10 + i3 as usize;
+                            let checksum = checksum_num(day, month, year, identifier);
+                            if checksum == exp {
+                                return Some((identifier, checksum));
+                            }
+                        }
+                    }
+                }
+                None
+            }();
+            match res {
+                Some((i, c)) => (i, c),
+                None => return Err(GenerateError)
+            }
+        } else {
+            let i1 = pattern.i1.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let i2 = pattern.i2.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let i3 = pattern.i3.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let identifier = i1 * 100 + i2 * 10 + i3;
+            let nums = day * 10000000 + month * 100000 +
+                (year % 100) * 1000 + identifier;
+            let checksum = CHECKSUM_TABLE[nums % 31];
+            (identifier, checksum)
+        };
+
+        Ok(format!("{:02.}{:02.}{:02.}{}{:03.}{}",
                 day,
                 month,
                 year % 100,
@@ -154,7 +178,7 @@ impl Ssn {
                     _ => panic!()
                 },
                 identifier,
-                checksum)
+                checksum))
     }
 }
 
@@ -224,9 +248,6 @@ impl SsnPattern {
             '?' => None,
             sep => Some(sep)
         };
-        if check.is_none() {
-            return Err(ParseError::Syntax("Wildcard check not supported", 10, 11));
-        }
         Ok(SsnPattern {
             d1,
             d2,
@@ -282,6 +303,25 @@ impl<'a> error::Error for ParseError<'a> {
             ParseError::Identifier(_, _, _) => "Invalid identifier",
             ParseError::Checksum(_, _, _) => "Invalid checksum",
         }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct GenerateError;
+
+impl<'a> fmt::Display for GenerateError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Unable to find suitable identifier")
+    }
+}
+
+impl<'a> error::Error for GenerateError {
+    fn description(&self) -> &str {
+        "Unable to find suitable identifier"
     }
 
     fn cause(&self) -> Option<&error::Error> {
@@ -349,7 +389,13 @@ fn checksum(ssn: &str) -> char {
     let mut hello: String = ssn[..6].to_string();
     hello.push_str(&ssn[7..10]);
     let nums: usize = (&hello).parse().unwrap();
-
+    CHECKSUM_TABLE[nums % 31]
+}
+fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
+    let nums = day  * 10000000
+            + month  * 100000
+            + (year % 100) * 1000
+            + identifier;
     CHECKSUM_TABLE[nums % 31]
 }
 

@@ -28,11 +28,25 @@ Options:
                 eprintln!("Error: {}\n\n  {}\n  {}", err, &args[1], index_arrows(err));
                 process::exit(1)
             }
-            Ok(pattern) => println!("{}", Ssn::generate_by_pattern(&pattern))
+            Ok(pattern) => {
+                match Ssn::generate_by_pattern(&pattern) {
+                    Ok(ref ssn) => println!("{}", ssn),
+                    Err(ref err) => {
+                        eprintln!("Error: {}", err);
+                        process::exit(1)
+                    }
+                }
+            }
         }
     } else if args.len() == 0 {
         let pattern = SsnPattern::new();
-        println!("{}", Ssn::generate_by_pattern(&pattern));
+        match Ssn::generate_by_pattern(&pattern) {
+            Ok(ref ssn) => println!("{}", ssn),
+            Err(ref err) => {
+                eprintln!("Error: {}", err);
+                process::exit(1)
+            }
+        }
     } else {
         let ssn: &String = &args[0];
         match Ssn::parse(&ssn) {
