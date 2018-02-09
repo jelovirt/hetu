@@ -9,6 +9,19 @@ use std::process;
 
 pub fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() == 0 || &args[0] == "-h" || &args[0] == "--help" {
+        println!("Validator and generator for Finnish SSN
+
+Usage:
+    hetu <ssn>
+    hetu -p <pattern>
+    hetu [options]
+
+Options:
+    -h, --help          Display this message
+");
+        return
+    }
     if args.len() > 1 && &args[0] == "-p" {
         match SsnPattern::parse(&args[1]) {
             Err(ref err) => {
