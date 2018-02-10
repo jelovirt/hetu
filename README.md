@@ -17,10 +17,10 @@ To validate:
 
 ```rust
 extern crate hetu;
-use hetu::Ssn::parse;
+use hetu::Ssn;
 
 pub fn main() {
-  if parse("121212-121D").is_ok() {
+  if Ssn::parse("121212-121D").is_ok() {
     println!("Valid HETU")
   } else {
     println!("Invalid")
@@ -32,10 +32,23 @@ To generate:
 
 ```rust
 extern crate hetu;
-use hetu::Ssn::generate;
+use hetu::Ssn;
 
 pub fn main() {
-  println!("{}", generate())
+  println!("{}", Ssn::generate());
+}
+```
+
+To generate by pattern:
+
+```rust
+extern crate hetu;
+use hetu::Ssn;
+use hetu::SsnPattern;
+
+pub fn main() {
+  let pattern = SsnPattern::parse("111111-111?").unwrap();
+  println!("{}", Ssn::generate_by_pattern(pattern).unwrap());
 }
 ```
 
@@ -60,6 +73,17 @@ To generate:
 ```bash
 $ hetu
 121212-121D
+```
+
+To generate by pattern that can contain wildcards:
+
+```bash
+$ hetu -p 121212-121?
+121212-121D
+$ hetu -p 121212-???D
+121212-028D
+hetu -p ??????-???D
+241151-028D
 ```
 
 [1]: https://en.wikipedia.org/wiki/National_identification_number#Finland
