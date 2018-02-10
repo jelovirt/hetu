@@ -106,30 +106,164 @@ impl Ssn {
     }
 
     /// Generate HETU with matching fields.
-    pub fn generate_by_pattern(ssn: &Ssn) -> String {
+    pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
         let mut rng = rand::thread_rng();
 
-        let separator = match ssn.year / 100 {
-            18 => "+",
-            19 => "-",
-            20 => "A",
-            _ => panic!(),
-        };
-        let identifier = (rng.gen_range(002, 900) / 2) * 2 +
-                         (if ssn.gender == Gender::Male {
-            1
+        let separator = pattern.sep
+            .map(|c| match c {
+                '+' => 0,
+                '-' => 1,
+                'A' => 2,
+                _ => panic!(),
+            })
+            .unwrap_or(rng.gen_range(0, 3)) as usize;
+        let y1 = pattern.y1.unwrap_or(rng.gen_range(0, 10)) as usize;
+        let y2 = pattern.y2.unwrap_or(rng.gen_range(0, 10)) as usize;
+        let year = (1800 + separator * 100) + y1 * 10 + y2;
+
+        let m1 = pattern.m1.unwrap_or(rng.gen_range(
+            if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 },
+            2)) as usize;
+        let m2 = pattern.m2.unwrap_or(rng.gen_range(
+            if m1 == 0 { 1 } else { 0 },
+            if m1 == 1 { 3 } else { 10 })) as usize;
+        let month = m1 * 10 + m2;
+
+        let days_in_month = days_in_month(month, year);
+        let d1 = pattern.d1.unwrap_or(rng.gen_range(
+            if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
+            if days_in_month % 10 == 3 { 4 } else { 3 })) as usize;
+        let d2 = pattern.d2.unwrap_or(rng.gen_range(0, 10)) as usize;
+        let day = d1 * 10 + d2;
+
+        let (identifier, checksum) = if pattern.check.is_some() {
+            let get_numbers = |num: Option<u8>| -> Vec<u8> {
+                num.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9))
+            };
+            let res = || -> Option<(usize, char)> {
+                let exp = pattern.check.unwrap();
+                for i1 in get_numbers(pattern.i1) {
+                    for i2 in get_numbers(pattern.i2) {
+                        for i3 in get_numbers(pattern.i3) {
+                            let identifier = i1 as usize * 100 + i2 as usize * 10 + i3 as usize;
+                            let checksum = checksum_num(day, month, year, identifier);
+                            if checksum == exp {
+                                return Some((identifier, checksum));
+                            }
+                        }
+                    }
+                }
+                None
+            }();
+            match res {
+                Some((i, c)) => (i, c),
+                None => return Err(GenerateError)
+            }
         } else {
-            0
-        });
-        let nums = ssn.day * 10000000 + ssn.month * 100000 + (ssn.year % 100) * 1000 + identifier;
-        let checksum = CHECKSUM_TABLE[nums % 31];
-        format!("{:02.}{:02.}{:02.}{}{:03.}{}",
-                ssn.day,
-                ssn.month,
-                ssn.year % 100,
-                separator,
+            let i1 = pattern.i1.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let i2 = pattern.i2.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let i3 = pattern.i3.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let identifier = i1 * 100 + i2 * 10 + i3;
+            let nums = day * 10000000 + month * 100000 +
+                (year % 100) * 1000 + identifier;
+            let checksum = CHECKSUM_TABLE[nums % 31];
+            (identifier, checksum)
+        };
+
+        Ok(format!("{:02.}{:02.}{:02.}{}{:03.}{}",
+                day,
+                month,
+                year % 100,
+                match separator {
+                    0 => '+',
+                    1 => '-',
+                    2 => 'A',
+                    _ => panic!()
+                },
                 identifier,
-                checksum)
+                checksum))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct SsnPattern {
+    pub d1: Option<u8>,
+    pub d2: Option<u8>,
+    pub m1: Option<u8>,
+    pub m2: Option<u8>,
+    pub y1: Option<u8>,
+    pub y2: Option<u8>,
+    pub sep: Option<char>,
+    pub i1: Option<u8>,
+    pub i2: Option<u8>,
+    pub i3: Option<u8>,
+    pub check: Option<char>,
+}
+
+impl SsnPattern {
+    pub fn new() -> SsnPattern {
+        SsnPattern {
+            d1: None,
+            d2: None,
+            m1: None,
+            m2: None,
+            y1: None,
+            y2: None,
+            sep: None,
+            i1: None,
+            i2: None,
+            i3: None,
+            check: None
+        }
+    }
+    fn parse_char(chars: &str, // chars: &Vec<char>,
+                  index: usize)
+                  -> Result<Option<u8>, ParseError> {
+        let c = chars.chars().nth(index).unwrap();
+        if c == '?' {
+            Ok(None)
+        } else {
+            Ok(Some(match chars[index..index + 1].parse::<u8>() {
+                Ok(n) => n,
+                Err(_) => return Err(ParseError::Syntax("Date not integer", index, index + 1)),
+            }))
+        }
+    }
+
+    pub fn parse(p: &str) -> Result<SsnPattern, ParseError> {
+        if p.len() != 11 {
+            return Err(ParseError::Syntax("Invalid length", 0, p.len()));
+        }
+        let d1: Option<u8> = SsnPattern::parse_char(&p, 0)?;
+        let d2: Option<u8> = SsnPattern::parse_char(&p, 1)?;
+        let m1: Option<u8> = SsnPattern::parse_char(&p, 2)?;
+        let m2: Option<u8> = SsnPattern::parse_char(&p, 3)?;
+        let y1: Option<u8> = SsnPattern::parse_char(&p, 4)?;
+        let y2: Option<u8> = SsnPattern::parse_char(&p, 5)?;
+        let sep: Option<char> = match p.chars().nth(6).unwrap() {
+            '?' => None,
+            sep => Some(sep)
+        };
+        let i1: Option<u8> = SsnPattern::parse_char(&p, 7)?;
+        let i2: Option<u8> = SsnPattern::parse_char(&p, 8)?;
+        let i3: Option<u8> = SsnPattern::parse_char(&p, 9)?;
+        let check: Option<char> = match p.chars().nth(10).unwrap() {
+            '?' => None,
+            sep => Some(sep)
+        };
+        Ok(SsnPattern {
+            d1,
+            d2,
+            m1,
+            m2,
+            y1,
+            y2,
+            sep,
+            i1,
+            i2,
+            i3,
+            check
+        })
     }
 }
 
@@ -172,6 +306,25 @@ impl<'a> error::Error for ParseError<'a> {
             ParseError::Identifier(_, _, _) => "Invalid identifier",
             ParseError::Checksum(_, _, _) => "Invalid checksum",
         }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct GenerateError;
+
+impl<'a> fmt::Display for GenerateError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Unable generate matching hetu")
+    }
+}
+
+impl<'a> error::Error for GenerateError {
+    fn description(&self) -> &str {
+        "Unable generate matching hetu"
     }
 
     fn cause(&self) -> Option<&error::Error> {
@@ -239,7 +392,13 @@ fn checksum(ssn: &str) -> char {
     let mut hello: String = ssn[..6].to_string();
     hello.push_str(&ssn[7..10]);
     let nums: usize = (&hello).parse().unwrap();
-
+    CHECKSUM_TABLE[nums % 31]
+}
+fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
+    let nums = day  * 10000000
+            + month  * 100000
+            + (year % 100) * 1000
+            + identifier;
     CHECKSUM_TABLE[nums % 31]
 }
 
@@ -337,5 +496,19 @@ mod tests {
     fn test_generate() {
         let ssn = Ssn::generate();
         assert!(Ssn::parse(&ssn).is_ok());
+    }
+
+    #[test]
+    fn test_pattern_parse() {
+        assert!(SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
+                "fail when given empty String");
+        assert!(SsnPattern::parse("123456-7890").is_ok(),
+                "fail when given empty String");
+    }
+
+    #[test]
+    fn test_generate_pattern() {
+        assert!(Ssn::generate_by_pattern(&SsnPattern::parse("111111-111?").unwrap()).unwrap() == "111111-111C",
+                "generate expected SSN");
     }
 }
