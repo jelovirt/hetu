@@ -137,12 +137,15 @@ impl Ssn {
         let day = d1 * 10 + d2;
 
         let (identifier, checksum) = if pattern.check.is_some() {
+            let get_numbers = |num: Option<u8>| -> Vec<u8> {
+                num.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9))
+            };
             let res = || -> Option<(usize, char)> {
                 let exp = pattern.check.unwrap();
-                for i1 in pattern.i1.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
-                    for i2 in pattern.i2.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
-                        for i3 in pattern.i3.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9)) {
-                            let identifier: usize = i1 as usize * 100 + i2 as usize * 10 + i3 as usize;
+                for i1 in get_numbers(pattern.i1) {
+                    for i2 in get_numbers(pattern.i2) {
+                        for i3 in get_numbers(pattern.i3) {
+                            let identifier = i1 as usize * 100 + i2 as usize * 10 + i3 as usize;
                             let checksum = checksum_num(day, month, year, identifier);
                             if checksum == exp {
                                 return Some((identifier, checksum));
@@ -315,13 +318,13 @@ pub struct GenerateError;
 
 impl<'a> fmt::Display for GenerateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Unable to find suitable identifier")
+        write!(f, "Unable generate matching hetu")
     }
 }
 
 impl<'a> error::Error for GenerateError {
     fn description(&self) -> &str {
-        "Unable to find suitable identifier"
+        "Unable generate matching hetu"
     }
 
     fn cause(&self) -> Option<&error::Error> {
@@ -496,8 +499,16 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_pattern() {
+    fn test_pattern_parse() {
         assert!(SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
                 "fail when given empty String");
+        assert!(SsnPattern::parse("123456-7890").is_ok(),
+                "fail when given empty String");
+    }
+
+    #[test]
+    fn test_generate_pattern() {
+        assert!(Ssn::generate_by_pattern(&SsnPattern::parse("111111-111?").unwrap()).unwrap() == "111111-111C",
+                "generate expected SSN");
     }
 }
