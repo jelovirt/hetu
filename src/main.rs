@@ -10,7 +10,8 @@ use std::process;
 pub fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() == 0 || &args[0] == "-h" || &args[0] == "--help" {
-        println!("Validator and generator for Finnish SSN
+        println!(
+            "Validator and generator for Finnish SSN
 
 Usage:
     hetu <ssn>
@@ -19,8 +20,9 @@ Usage:
 
 Options:
     -h, --help          Display this message
-");
-        return
+"
+        );
+        return;
     }
     if args.len() > 1 && &args[0] == "-p" {
         match SsnPattern::parse(&args[1]) {
@@ -28,15 +30,13 @@ Options:
                 eprintln!("Error: {}\n\n  {}\n  {}", err, &args[1], index_arrows(err));
                 process::exit(1)
             }
-            Ok(pattern) => {
-                match Ssn::generate_by_pattern(&pattern) {
-                    Ok(ref ssn) => println!("{}", ssn),
-                    Err(ref err) => {
-                        eprintln!("Error: {}", err);
-                        process::exit(1)
-                    }
+            Ok(pattern) => match Ssn::generate_by_pattern(&pattern) {
+                Ok(ref ssn) => println!("{}", ssn),
+                Err(ref err) => {
+                    eprintln!("Error: {}", err);
+                    process::exit(1)
                 }
-            }
+            },
         }
     } else if args.len() == 0 {
         let pattern = SsnPattern::new();

@@ -39,8 +39,7 @@ impl Ssn {
             return Err(ParseError::Month("Invalid month number", 2, 4));
         }
 
-        let year = date % 100 +
-                   match separator {
+        let year = date % 100 + match separator {
             '+' => 1800,
             '-' => 1900,
             'A' => 2000,
@@ -96,20 +95,23 @@ impl Ssn {
         let identifier = rng.gen_range(002, 900);
         let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
-        format!("{:02.}{:02.}{:02.}{}{:03.}{}",
-                day,
-                month,
-                year % 100,
-                separator,
-                identifier,
-                checksum)
+        format!(
+            "{:02.}{:02.}{:02.}{}{:03.}{}",
+            day,
+            month,
+            year % 100,
+            separator,
+            identifier,
+            checksum
+        )
     }
 
     /// Generate HETU with matching fields.
     pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
         let mut rng = rand::thread_rng();
 
-        let separator = pattern.sep
+        let separator = pattern
+            .sep
             .map(|c| match c {
                 '+' => 0,
                 '-' => 1,
@@ -121,24 +123,28 @@ impl Ssn {
         let y2 = pattern.y2.unwrap_or(rng.gen_range(0, 10)) as usize;
         let year = (1800 + separator * 100) + y1 * 10 + y2;
 
-        let m1 = pattern.m1.unwrap_or(rng.gen_range(
-            if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 },
-            2)) as usize;
-        let m2 = pattern.m2.unwrap_or(rng.gen_range(
-            if m1 == 0 { 1 } else { 0 },
-            if m1 == 1 { 3 } else { 10 })) as usize;
+        let m1 = pattern
+            .m1
+            .unwrap_or(rng.gen_range(if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 }, 2))
+            as usize;
+        let m2 = pattern
+            .m2
+            .unwrap_or(rng.gen_range(if m1 == 0 { 1 } else { 0 }, if m1 == 1 { 3 } else { 10 }))
+            as usize;
         let month = m1 * 10 + m2;
 
         let days_in_month = days_in_month(month, year);
         let d1 = pattern.d1.unwrap_or(rng.gen_range(
             if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
-            if days_in_month % 10 == 3 { 4 } else { 3 })) as usize;
+            if days_in_month % 10 == 3 { 4 } else { 3 },
+        )) as usize;
         let d2 = pattern.d2.unwrap_or(rng.gen_range(0, 10)) as usize;
         let day = d1 * 10 + d2;
 
         let (identifier, checksum) = if pattern.check.is_some() {
             let get_numbers = |num: Option<u8>| -> Vec<u8> {
-                num.map(|v| vec!(v)).unwrap_or(vec!(0,1,2,3,4,5,6,7,8,9))
+                num.map(|v| vec![v])
+                    .unwrap_or(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
             };
             let res = || -> Option<(usize, char)> {
                 let exp = pattern.check.unwrap();
@@ -157,31 +163,32 @@ impl Ssn {
             }();
             match res {
                 Some((i, c)) => (i, c),
-                None => return Err(GenerateError)
+                None => return Err(GenerateError),
             }
         } else {
             let i1 = pattern.i1.unwrap_or(rng.gen_range(0, 10)) as usize;
             let i2 = pattern.i2.unwrap_or(rng.gen_range(0, 10)) as usize;
             let i3 = pattern.i3.unwrap_or(rng.gen_range(0, 10)) as usize;
             let identifier = i1 * 100 + i2 * 10 + i3;
-            let nums = day * 10000000 + month * 100000 +
-                (year % 100) * 1000 + identifier;
+            let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
             let checksum = CHECKSUM_TABLE[nums % 31];
             (identifier, checksum)
         };
 
-        Ok(format!("{:02.}{:02.}{:02.}{}{:03.}{}",
-                day,
-                month,
-                year % 100,
-                match separator {
-                    0 => '+',
-                    1 => '-',
-                    2 => 'A',
-                    _ => panic!()
-                },
-                identifier,
-                checksum))
+        Ok(format!(
+            "{:02.}{:02.}{:02.}{}{:03.}{}",
+            day,
+            month,
+            year % 100,
+            match separator {
+                0 => '+',
+                1 => '-',
+                2 => 'A',
+                _ => panic!(),
+            },
+            identifier,
+            checksum
+        ))
     }
 }
 
@@ -213,12 +220,13 @@ impl SsnPattern {
             i1: None,
             i2: None,
             i3: None,
-            check: None
+            check: None,
         }
     }
-    fn parse_char(chars: &str, // chars: &Vec<char>,
-                  index: usize)
-                  -> Result<Option<u8>, ParseError> {
+    fn parse_char(
+        chars: &str, // chars: &Vec<char>,
+        index: usize,
+    ) -> Result<Option<u8>, ParseError> {
         let c = chars.chars().nth(index).unwrap();
         if c == '?' {
             Ok(None)
@@ -242,14 +250,14 @@ impl SsnPattern {
         let y2: Option<u8> = SsnPattern::parse_char(&p, 5)?;
         let sep: Option<char> = match p.chars().nth(6).unwrap() {
             '?' => None,
-            sep => Some(sep)
+            sep => Some(sep),
         };
         let i1: Option<u8> = SsnPattern::parse_char(&p, 7)?;
         let i2: Option<u8> = SsnPattern::parse_char(&p, 8)?;
         let i3: Option<u8> = SsnPattern::parse_char(&p, 9)?;
         let check: Option<char> = match p.chars().nth(10).unwrap() {
             '?' => None,
-            sep => Some(sep)
+            sep => Some(sep),
         };
         Ok(SsnPattern {
             d1,
@@ -262,7 +270,7 @@ impl SsnPattern {
             i1,
             i2,
             i3,
-            check
+            check,
         })
     }
 }
@@ -384,9 +392,10 @@ fn days_in_month(month: usize, year: usize) -> usize {
     }
 }
 
-static CHECKSUM_TABLE: [char; 31] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B',
-                                     'C', 'D', 'E', 'F', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R',
-                                     'S', 'T', 'U', 'V', 'W', 'X', 'Y'];
+static CHECKSUM_TABLE: [char; 31] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'H', 'J', 'K',
+    'L', 'M', 'N', 'P', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+];
 
 fn checksum(ssn: &str) -> char {
     let mut hello: String = ssn[..6].to_string();
@@ -395,10 +404,7 @@ fn checksum(ssn: &str) -> char {
     CHECKSUM_TABLE[nums % 31]
 }
 fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
-    let nums = day  * 10000000
-            + month  * 100000
-            + (year % 100) * 1000
-            + identifier;
+    let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
     CHECKSUM_TABLE[nums % 31]
 }
 
@@ -412,84 +418,110 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        assert!(Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
-                "fail when given empty String");
-        assert!(Ssn::parse("301398-1233").unwrap_err() ==
-                ParseError::Month("Invalid month number", 2, 4),
-                "fail when given birthdate with month out of bounds");
-        assert!(Ssn::parse("320198-123P").unwrap_err() ==
-                ParseError::Day("Invalid day number", 0, 2),
-                "fail when given birthdate with date out of bounds in January");
-        assert!(Ssn::parse("290299-123U").unwrap_err() ==
-                ParseError::Day("Invalid day number", 0, 2),
-                "fail when given birthdate with date out of bounds in February, non leap year");
-        assert!(Ssn::parse("300204-123Y").unwrap_err() ==
-                ParseError::Day("Invalid day number", 0, 2),
-                "fail when given birth date with date out of bounds in February, a leap year");
-        assert!(Ssn::parse("0101AA-123A").unwrap_err() ==
-                ParseError::Syntax("Date not integer", 0, 6),
-                "fail when given birth date with alphabets");
-        assert!(Ssn::parse("010195_433X").unwrap_err() ==
-                ParseError::Syntax("Invalid separator", 6, 7),
-                "fail when given invalid separator chars");
-        assert!(Ssn::parse("01011995+433X").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 13),
-                "fail when given too long date");
-        assert!(Ssn::parse("01015+433X").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 10),
-                "fail when given too short date");
-        assert!(Ssn::parse("010195+4433X").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 12),
-                "fail when given too long checksum part");
-        assert!(Ssn::parse("010195+33X").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 10),
-                "fail when given too long checksum part");
-        assert_eq!(Ssn::parse("010195+433X").unwrap(),
-                   Ssn {
-                       day: 1,
-                       month: 1,
-                       year: 1895,
-                       gender: Gender::Male,
-                   });
-        assert_eq!(Ssn::parse("010197-100P").unwrap(),
-                   Ssn {
-                       day: 1,
-                       month: 1,
-                       year: 1997,
-                       gender: Gender::Female,
-                   });
-        assert_eq!(Ssn::parse("010114A173M").unwrap(),
-                   Ssn {
-                       day: 1,
-                       month: 1,
-                       year: 2014,
-                       gender: Gender::Male,
-                   });
+        assert!(
+            Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
+            "fail when given empty String"
+        );
+        assert!(
+            Ssn::parse("301398-1233").unwrap_err()
+                == ParseError::Month("Invalid month number", 2, 4),
+            "fail when given birthdate with month out of bounds"
+        );
+        assert!(
+            Ssn::parse("320198-123P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            "fail when given birthdate with date out of bounds in January"
+        );
+        assert!(
+            Ssn::parse("290299-123U").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            "fail when given birthdate with date out of bounds in February, non leap year"
+        );
+        assert!(
+            Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            "fail when given birth date with date out of bounds in February, a leap year"
+        );
+        assert!(
+            Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax("Date not integer", 0, 6),
+            "fail when given birth date with alphabets"
+        );
+        assert!(
+            Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax("Invalid separator", 6, 7),
+            "fail when given invalid separator chars"
+        );
+        assert!(
+            Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 13),
+            "fail when given too long date"
+        );
+        assert!(
+            Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
+            "fail when given too short date"
+        );
+        assert!(
+            Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            "fail when given too long checksum part"
+        );
+        assert!(
+            Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
+            "fail when given too long checksum part"
+        );
+        assert_eq!(
+            Ssn::parse("010195+433X").unwrap(),
+            Ssn {
+                day: 1,
+                month: 1,
+                year: 1895,
+                gender: Gender::Male,
+            }
+        );
+        assert_eq!(
+            Ssn::parse("010197-100P").unwrap(),
+            Ssn {
+                day: 1,
+                month: 1,
+                year: 1997,
+                gender: Gender::Female,
+            }
+        );
+        assert_eq!(
+            Ssn::parse("010114A173M").unwrap(),
+            Ssn {
+                day: 1,
+                month: 1,
+                year: 2014,
+                gender: Gender::Male,
+            }
+        );
         // pass when given valid finnishSSN with leap year, divisible only by 4
-        assert_eq!(Ssn::parse("290296-7808").unwrap(),
-                   Ssn {
-                       day: 29,
-                       month: 2,
-                       year: 1996,
-                       gender: Gender::Female,
-                   });
-        assert!(Ssn::parse("290200-101P").unwrap_err() ==
-                ParseError::Day("Invalid day number", 0, 2),
-                "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400");
+        assert_eq!(
+            Ssn::parse("290296-7808").unwrap(),
+            Ssn {
+                day: 29,
+                month: 2,
+                year: 1996,
+                gender: Gender::Female,
+            }
+        );
+        assert!(
+            Ssn::parse("290200-101P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400"
+        );
         // pass when given valid finnishSSN with leap year, divisible by 100 and by 400
-        assert_eq!(Ssn::parse("290200A248A").unwrap(),
-                   Ssn {
-                       day: 29,
-                       month: 2,
-                       year: 2000,
-                       gender: Gender::Female,
-                   });
-        assert!(Ssn::parse("010114A173M ").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 12),
-                "fail when given SSN longer than 11 chars, bogus in the end");
-        assert!(Ssn::parse(" 010114A173M").unwrap_err() ==
-                ParseError::Syntax("Invalid length", 0, 12),
-                "fail when given SSN longer than 11 chars, bogus in the beginning");
+        assert_eq!(
+            Ssn::parse("290200A248A").unwrap(),
+            Ssn {
+                day: 29,
+                month: 2,
+                year: 2000,
+                gender: Gender::Female,
+            }
+        );
+        assert!(
+            Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            "fail when given SSN longer than 11 chars, bogus in the end"
+        );
+        assert!(
+            Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            "fail when given SSN longer than 11 chars, bogus in the beginning"
+        );
     }
 
     #[test]
@@ -500,15 +532,22 @@ mod tests {
 
     #[test]
     fn test_pattern_parse() {
-        assert!(SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
-                "fail when given empty String");
-        assert!(SsnPattern::parse("123456-7890").is_ok(),
-                "fail when given empty String");
+        assert!(
+            SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
+            "fail when given empty String"
+        );
+        assert!(
+            SsnPattern::parse("123456-7890").is_ok(),
+            "fail when given empty String"
+        );
     }
 
     #[test]
     fn test_generate_pattern() {
-        assert!(Ssn::generate_by_pattern(&SsnPattern::parse("111111-111?").unwrap()).unwrap() == "111111-111C",
-                "generate expected SSN");
+        assert!(
+            Ssn::generate_by_pattern(&SsnPattern::parse("111111-111?").unwrap()).unwrap()
+                == "111111-111C",
+            "generate expected SSN"
+        );
     }
 }
