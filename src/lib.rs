@@ -295,7 +295,7 @@ impl<'a> fmt::Display for ParseError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ParseError::Syntax(ref desc, _, _) => write!(f, "Invalid syntax: {}", *desc),
-            ParseError::Day(ref desc, _, _) => write!(f, "Invalid day: {}", desc),
+            ParseError::Day(ref desc, _, _) => write!(f, "Invalid day: {}", *desc),
             ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
             ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
             ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
