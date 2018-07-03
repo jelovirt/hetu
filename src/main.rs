@@ -1,15 +1,15 @@
 extern crate hetu;
 
+use hetu::ErrorIndexRange;
+use hetu::ParseError;
 use hetu::Ssn;
 use hetu::SsnPattern;
-use hetu::ParseError;
-use hetu::ErrorIndexRange;
 use std::env;
 use std::process;
 
 pub fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    if args.len() == 0 || &args[0] == "-h" || &args[0] == "--help" {
+    if args.len() == 1 && (&args[0] == "-h" || &args[0] == "--help") {
         println!(
             "Validator and generator for Finnish SSN
 
@@ -24,6 +24,7 @@ Options:
         );
         return;
     }
+
     if args.len() > 1 && &args[0] == "-p" {
         match SsnPattern::parse(&args[1]) {
             Err(ref err) => {
