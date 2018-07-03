@@ -10,18 +10,7 @@ use std::process;
 pub fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.len() == 1 && (&args[0] == "-h" || &args[0] == "--help") {
-        println!(
-            "Validator and generator for Finnish SSN
-
-Usage:
-    hetu <ssn>
-    hetu -p <pattern>
-    hetu [options]
-
-Options:
-    -h, --help          Display this message
-"
-        );
+        help();
         return;
     }
 
@@ -58,6 +47,21 @@ Options:
             }
         }
     }
+}
+
+fn help() {
+    println!(
+        "Validator and generator for Finnish SSN
+
+Usage:
+    hetu <ssn>
+    hetu -p <pattern>
+    hetu [options]
+
+Options:
+    -h, --help          Display this message
+"
+    );
 }
 
 fn index_arrows(err: &ParseError) -> String {
