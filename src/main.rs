@@ -28,7 +28,7 @@ pub fn main() {
                 }
             },
         }
-    } else if args.len() == 0 {
+    } else if args.is_empty() {
         let pattern = SsnPattern::new();
         match Ssn::generate_by_pattern(&pattern) {
             Ok(ref ssn) => println!("{}", ssn),

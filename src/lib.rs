@@ -34,7 +34,7 @@ impl Ssn {
             Err(_) => return Err(ParseError::Syntax("Date not integer", 0, 6)),
         };
 
-        let month = date % 10000 / 100;
+        let month = date % 10_000 / 100;
         if month < 1 || month > 12 {
             return Err(ParseError::Month("Invalid month number", 2, 4));
         }
@@ -47,7 +47,7 @@ impl Ssn {
         };
 
         let days_in_month = days_in_month(month, year);
-        let day = date / 10000;
+        let day = date / 10_000;
         if day < 1 || day > days_in_month {
             return Err(ParseError::Day("Invalid day number", 0, 2));
         }
@@ -56,7 +56,7 @@ impl Ssn {
             Ok(n) => n,
             Err(_) => return Err(ParseError::Identifier("Invalid identifier", 7, 10)),
         };
-        if identifier < 002 || identifier > 899 {
+        if identifier < 2 || identifier > 899 {
             return Err(ParseError::Identifier("Invalid identifier number", 10, 11));
         }
 
@@ -72,10 +72,10 @@ impl Ssn {
         };
 
         Ok(Ssn {
-            day: day,
-            month: month,
-            year: year,
-            gender: gender,
+            day,
+            month,
+            year,
+            gender,
         })
     }
 
@@ -92,8 +92,8 @@ impl Ssn {
             20 => "A",
             _ => panic!(),
         };
-        let identifier = rng.gen_range(002, 900);
-        let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
+        let identifier = rng.gen_range(2, 900);
+        let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
         format!(
             "{:02.}{:02.}{:02.}{}{:03.}{}",
@@ -117,34 +117,32 @@ impl Ssn {
                 '-' => 1,
                 'A' => 2,
                 _ => panic!(),
-            })
-            .unwrap_or(rng.gen_range(0, 3)) as usize;
-        let y1 = pattern.y1.unwrap_or(rng.gen_range(0, 10)) as usize;
-        let y2 = pattern.y2.unwrap_or(rng.gen_range(0, 10)) as usize;
+            }).unwrap_or_else(|| rng.gen_range(0, 3)) as usize;
+        let y1 = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+        let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let year = (1800 + separator * 100) + y1 * 10 + y2;
 
         let m1 = pattern
             .m1
-            .unwrap_or(rng.gen_range(if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 }, 2))
+            .unwrap_or_else(|| rng.gen_range(if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 }, 2))
             as usize;
-        let m2 = pattern
-            .m2
-            .unwrap_or(rng.gen_range(if m1 == 0 { 1 } else { 0 }, if m1 == 1 { 3 } else { 10 }))
-            as usize;
+        let m2 = pattern.m2.unwrap_or_else(|| {
+            rng.gen_range(if m1 == 0 { 1 } else { 0 }, if m1 == 1 { 3 } else { 10 })
+        }) as usize;
         let month = m1 * 10 + m2;
 
         let days_in_month = days_in_month(month, year);
-        let d1 = pattern.d1.unwrap_or(rng.gen_range(
+        let d1 = pattern.d1.unwrap_or_else(|| rng.gen_range(
             if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
             if days_in_month % 10 == 3 { 4 } else { 3 },
         )) as usize;
-        let d2 = pattern.d2.unwrap_or(rng.gen_range(0, 10)) as usize;
+        let d2 = pattern.d2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let day = d1 * 10 + d2;
 
         let (identifier, checksum) = if pattern.check.is_some() {
             let get_numbers = |num: Option<u8>| -> Vec<u8> {
                 num.map(|v| vec![v])
-                    .unwrap_or(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                    .unwrap_or_else(|| vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
             };
             let res = || -> Option<(usize, char)> {
                 let exp = pattern.check.unwrap();
@@ -166,11 +164,11 @@ impl Ssn {
                 None => return Err(GenerateError),
             }
         } else {
-            let i1 = pattern.i1.unwrap_or(rng.gen_range(0, 10)) as usize;
-            let i2 = pattern.i2.unwrap_or(rng.gen_range(0, 10)) as usize;
-            let i3 = pattern.i3.unwrap_or(rng.gen_range(0, 10)) as usize;
+            let i1 = pattern.i1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+            let i2 = pattern.i2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+            let i3 = pattern.i3.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
             let identifier = i1 * 100 + i2 * 10 + i3;
-            let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
+            let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
             let checksum = CHECKSUM_TABLE[nums % 31];
             (identifier, checksum)
         };
@@ -192,7 +190,7 @@ impl Ssn {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
     pub d2: Option<u8>,
@@ -231,7 +229,7 @@ impl SsnPattern {
         if c == '?' {
             Ok(None)
         } else {
-            Ok(Some(match chars[index..index + 1].parse::<u8>() {
+            Ok(Some(match chars[index..=index].parse::<u8>() {
                 Ok(n) => n,
                 Err(_) => return Err(ParseError::Syntax("Date not integer", index, index + 1)),
             }))
@@ -404,7 +402,7 @@ fn checksum(ssn: &str) -> char {
     CHECKSUM_TABLE[nums % 31]
 }
 fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
-    let nums = day * 10000000 + month * 100000 + (year % 100) * 1000 + identifier;
+    let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
     CHECKSUM_TABLE[nums % 31]
 }
 
