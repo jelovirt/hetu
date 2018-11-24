@@ -61,8 +61,9 @@ To validate:
 
 ```bash
 $ hetu 121212-121D
+$ echo 121212-121D | hetu -
 $ hetu 121212-121C
-Error: Invalid checksum
+Error: Invalid checksum: expected D
   
   121212-121C
             ^
