@@ -1,11 +1,14 @@
 extern crate hetu;
+extern crate ansi_term;
 
 use hetu::ErrorIndexRange;
 use hetu::ParseError;
 use hetu::Ssn;
 use hetu::SsnPattern;
 use std::env;
+use std::io::{self, BufRead};
 use std::process;
+use ansi_term::Colour::Red;
 
 pub fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -17,7 +20,7 @@ pub fn main() {
     if args.len() > 1 && &args[0] == "-p" {
         match SsnPattern::parse(&args[1]) {
             Err(ref err) => {
-                eprintln!("Error: {}\n\n  {}\n  {}", err, &args[1], index_arrows(err));
+                eprintln!("Error: {}\n\n  {}\n  {}", err, &args[1], Red.paint(index_arrows(err)));
                 process::exit(1)
             }
             Ok(pattern) => match Ssn::generate_by_pattern(&pattern) {
@@ -27,6 +30,11 @@ pub fn main() {
                     process::exit(1)
                 }
             },
+        }
+    } else if args.len() == 1 && &args[0] == "-" {
+        let stdin = io::stdin();
+        for line in stdin.lock().lines() {
+            parse(&(line.unwrap()));
         }
     } else if args.is_empty() {
         let pattern = SsnPattern::new();
@@ -38,13 +46,16 @@ pub fn main() {
             }
         }
     } else {
-        let ssn: &String = &args[0];
-        match Ssn::parse(&ssn) {
-            Ok(_) => (),
-            Err(ref err) => {
-                eprintln!("Error: {}\n\n  {}\n  {}", err, &ssn, index_arrows(err));
-                process::exit(1)
-            }
+        parse(&args[0]);
+    }
+}
+
+fn parse(ssn: &str) -> () {
+    match Ssn::parse(&ssn) {
+        Ok(_) => (),
+        Err(ref err) => {
+            eprintln!("Error: {}\n\n  {}\n  {}", err, &ssn, Red.paint(index_arrows(err)));
+            process::exit(1)
         }
     }
 }
@@ -55,6 +66,7 @@ fn help() {
 
 Usage:
     hetu <ssn>
+    hetu -
     hetu -p <pattern>
     hetu [options]
 
