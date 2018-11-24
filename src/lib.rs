@@ -62,7 +62,7 @@ impl Ssn {
 
         let checksum = checksum(&ssn);
         if checksum != chars[10] {
-            return Err(ParseError::Checksum("Incorrect checksum", 10, 11));
+            return Err(ParseError::Checksum("Incorrect checksum", 10, 11, checksum));
         }
 
         let gender: Gender = if identifier % 2 == 0 {
@@ -286,7 +286,7 @@ pub enum ParseError<'a> {
     Month(&'a str, usize, usize),
     Year(&'a str, usize, usize),
     Identifier(&'a str, usize, usize),
-    Checksum(&'a str, usize, usize),
+    Checksum(&'a str, usize, usize, char),
 }
 
 impl<'a> fmt::Display for ParseError<'a> {
@@ -297,7 +297,7 @@ impl<'a> fmt::Display for ParseError<'a> {
             ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
             ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
             ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
-            ParseError::Checksum(_, _, _) => write!(f, "Invalid checksum"),
+            ParseError::Checksum(_, _, _, ref checksum) => write!(f, "Invalid checksum: expected {}", checksum),
         }
     }
 }
@@ -310,7 +310,7 @@ impl<'a> error::Error for ParseError<'a> {
             ParseError::Month(_, _, _) => "Invalid month",
             ParseError::Year(_, _, _) => "Invalid year",
             ParseError::Identifier(_, _, _) => "Invalid identifier",
-            ParseError::Checksum(_, _, _) => "Invalid checksum",
+            ParseError::Checksum(_, _, _, _) => "Invalid checksum",
         }
     }
 
@@ -324,13 +324,13 @@ pub struct GenerateError;
 
 impl<'a> fmt::Display for GenerateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Unable generate matching hetu")
+        write!(f, "Unable to generate matching hetu")
     }
 }
 
 impl<'a> error::Error for GenerateError {
     fn description(&self) -> &str {
-        "Unable generate matching hetu"
+        "Unable to generate matching hetu"
     }
 
     fn cause(&self) -> Option<&error::Error> {
@@ -351,7 +351,7 @@ impl<'a> ErrorIndexRange for ParseError<'a> {
             ParseError::Month(_, start, _) => start,
             ParseError::Year(_, start, _) => start,
             ParseError::Identifier(_, start, _) => start,
-            ParseError::Checksum(_, start, _) => start,
+            ParseError::Checksum(_, start, _, _) => start,
         }
     }
     fn end(&self) -> usize {
@@ -361,7 +361,7 @@ impl<'a> ErrorIndexRange for ParseError<'a> {
             ParseError::Month(_, _, end) => end,
             ParseError::Year(_, _, end) => end,
             ParseError::Identifier(_, _, end) => end,
-            ParseError::Checksum(_, _, end) => end,
+            ParseError::Checksum(_, _, end, _) => end,
         }
     }
 }
