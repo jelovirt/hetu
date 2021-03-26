@@ -314,7 +314,7 @@ impl<'a> error::Error for ParseError<'a> {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
@@ -333,7 +333,7 @@ impl<'a> error::Error for GenerateError {
         "Unable to generate matching hetu"
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
@@ -536,7 +536,11 @@ mod tests {
         );
         assert!(
             SsnPattern::parse("123456-7890").is_ok(),
-            "fail when given empty String"
+            "parse valid SSN"
+        );
+        assert!(
+            SsnPattern::parse("??????-????").is_ok(),
+            "parse all wildcard input"
         );
     }
 
