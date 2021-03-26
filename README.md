@@ -79,11 +79,11 @@ $ hetu
 To generate by pattern that can contain wildcards:
 
 ```bash
-$ hetu -p 121212-121?
+$ hetu -p "121212-121?"
 121212-121D
-$ hetu -p 121212-???D
+$ hetu -p "121212-???D"
 121212-028D
-hetu -p ??????-???D
+hetu -p "??????-???D"
 241151-028D
 ```
 
