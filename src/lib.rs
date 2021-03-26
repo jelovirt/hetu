@@ -248,13 +248,19 @@ impl SsnPattern {
         let y2: Option<u8> = SsnPattern::parse_char(&p, 5)?;
         let sep: Option<char> = match p.chars().nth(6).unwrap() {
             '?' => None,
-            sep => Some(sep),
+            sep @ '+' => Some(sep),
+            sep @ '-' => Some(sep),
+            sep @ 'A' => Some(sep),
+            _ => {
+                return Err(ParseError::Syntax("Invalid separator character", 6, 7));
+            }
         };
         let i1: Option<u8> = SsnPattern::parse_char(&p, 7)?;
         let i2: Option<u8> = SsnPattern::parse_char(&p, 8)?;
         let i3: Option<u8> = SsnPattern::parse_char(&p, 9)?;
         let check: Option<char> = match p.chars().nth(10).unwrap() {
             '?' => None,
+            // TODO validate that this is checksum character
             sep => Some(sep),
         };
         Ok(SsnPattern {
@@ -533,6 +539,10 @@ mod tests {
         assert!(
             SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
             "fail when given empty String"
+        );
+        assert!(
+            SsnPattern::parse("123456X7890").unwrap_err() == ParseError::Syntax("Invalid separator character", 6, 7),
+            "fail when separator is not valid character"
         );
         assert!(
             SsnPattern::parse("123456-7890").is_ok(),
