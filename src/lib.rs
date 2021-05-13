@@ -76,7 +76,7 @@ impl Ssn {
         let year = rng.gen_range(1890, 2016);
         let month = rng.gen_range(1, 13);
         let day = rng.gen_range(1, days_in_month(month, year) + 1);
-        let separator = to_separator(year);
+        let separator = to_separator(year).unwrap();
         let identifier = rng.gen_range(2, 900);
         let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
@@ -165,7 +165,7 @@ impl Ssn {
             day,
             month,
             year % 100,
-            to_separator(century),
+            to_separator(century)?,
             identifier,
             checksum
         ))
@@ -183,12 +183,12 @@ fn from_separator<'a>(separator: char) -> Result<usize, ParseError<'a>> {
 }
 
 /** Get separator character for year. */
-fn to_separator(year: usize) -> char {
+fn to_separator(year: usize) -> Result<char, GenerateError> {
     match year / 100 {
-        18 => '+',
-        19 => '-',
-        20 => 'A',
-        _ => panic!("Invalid year {}", year),
+        18 => Ok('+'),
+        19 => Ok('-'),
+        20 => Ok('A'),
+        _ => Err(GenerateError),
     }
 }
 
