@@ -22,12 +22,7 @@ impl Ssn {
         let chars: Vec<char> = ssn.chars().collect();
 
         let separator = chars[6];
-        match separator {
-            '+' => (),
-            '-' => (),
-            'A' => (),
-            _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
-        };
+        from_separator(separator)?;
 
         let date: usize = match ssn[0..6].parse::<usize>() {
             Ok(n) => n,
@@ -39,13 +34,7 @@ impl Ssn {
             return Err(ParseError::Month("Invalid month number", 2, 4));
         }
 
-        let year = date % 100
-            + match separator {
-                '+' => 1800,
-                '-' => 1900,
-                'A' => 2000,
-                _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
-            };
+        let year = date % 100 + from_separator(separator)?;
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10_000;
@@ -87,12 +76,7 @@ impl Ssn {
         let year = rng.gen_range(1890, 2016);
         let month = rng.gen_range(1, 13);
         let day = rng.gen_range(1, days_in_month(month, year) + 1);
-        let separator = match year / 100 {
-            18 => '+',
-            19 => '-',
-            20 => 'A',
-            _ => panic!(),
-        };
+        let separator = to_separator(year);
         let identifier = rng.gen_range(2, 900);
         let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
@@ -111,18 +95,17 @@ impl Ssn {
     pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
         let mut rng = rand::thread_rng();
 
-        let separator = pattern
+        let century = match pattern
             .sep
-            .map(|c| match c {
-                '+' => 0,
-                '-' => 1,
-                'A' => 2,
-                _ => panic!(),
-            })
-            .unwrap_or_else(|| rng.gen_range(0, 3)) as usize;
-        let y1 = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+            .map(|c| from_separator(c))
+            .unwrap_or_else(|| Ok(1800 + rng.gen_range(0, 3) * 100))
+        {
+            Ok(v) => v,
+            Err(_) => return Err(GenerateError),
+        };
+        let decade = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-        let year = (1800 + separator * 100) + y1 * 10 + y2;
+        let year = century + decade * 10 + y2;
 
         let m1 = pattern
             .m1
@@ -182,15 +165,30 @@ impl Ssn {
             day,
             month,
             year % 100,
-            match separator {
-                0 => '+',
-                1 => '-',
-                2 => 'A',
-                _ => panic!(),
-            },
+            to_separator(century),
             identifier,
             checksum
         ))
+    }
+}
+
+/** Parse separator into century. */
+fn from_separator<'a>(separator: char) -> Result<usize, ParseError<'a>> {
+    match separator {
+        '+' => Ok(1800),
+        '-' => Ok(1900),
+        'A' => Ok(2000),
+        _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
+    }
+}
+
+/** Get separator character for year. */
+fn to_separator(year: usize) -> char {
+    match year / 100 {
+        18 => '+',
+        19 => '-',
+        20 => 'A',
+        _ => panic!("Invalid year {}", year),
     }
 }
 
