@@ -35,16 +35,17 @@ impl Ssn {
         };
 
         let month = date % 10_000 / 100;
-        if month < 1 || month > 12 {
+        if !(1..=12).contains(&month) {
             return Err(ParseError::Month("Invalid month number", 2, 4));
         }
 
-        let year = date % 100 + match separator {
-            '+' => 1800,
-            '-' => 1900,
-            'A' => 2000,
-            _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
-        };
+        let year = date % 100
+            + match separator {
+                '+' => 1800,
+                '-' => 1900,
+                'A' => 2000,
+                _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
+            };
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10_000;
@@ -56,7 +57,7 @@ impl Ssn {
             Ok(n) => n,
             Err(_) => return Err(ParseError::Identifier("Invalid identifier", 7, 10)),
         };
-        if identifier < 2 || identifier > 899 {
+        if !(2..=899).contains(&identifier) {
             return Err(ParseError::Identifier("Invalid identifier number", 10, 11));
         }
 
@@ -117,7 +118,8 @@ impl Ssn {
                 '-' => 1,
                 'A' => 2,
                 _ => panic!(),
-            }).unwrap_or_else(|| rng.gen_range(0, 3)) as usize;
+            })
+            .unwrap_or_else(|| rng.gen_range(0, 3)) as usize;
         let y1 = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let year = (1800 + separator * 100) + y1 * 10 + y2;
@@ -132,10 +134,12 @@ impl Ssn {
         let month = m1 * 10 + m2;
 
         let days_in_month = days_in_month(month, year);
-        let d1 = pattern.d1.unwrap_or_else(|| rng.gen_range(
-            if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
-            if days_in_month % 10 == 3 { 4 } else { 3 },
-        )) as usize;
+        let d1 = pattern.d1.unwrap_or_else(|| {
+            rng.gen_range(
+                if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
+                if days_in_month % 10 == 3 { 4 } else { 3 },
+            )
+        }) as usize;
         let d2 = pattern.d2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let day = d1 * 10 + d2;
 
@@ -303,7 +307,9 @@ impl<'a> fmt::Display for ParseError<'a> {
             ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
             ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
             ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
-            ParseError::Checksum(_, _, _, ref checksum) => write!(f, "Invalid checksum: expected {}", checksum),
+            ParseError::Checksum(_, _, _, ref checksum) => {
+                write!(f, "Invalid checksum: expected {}", checksum)
+            }
         }
     }
 }
@@ -320,7 +326,7 @@ impl<'a> error::Error for ParseError<'a> {
         }
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn cause(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }
@@ -339,7 +345,7 @@ impl<'a> error::Error for GenerateError {
         "Unable to generate matching hetu"
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn cause(&self) -> Option<&(dyn error::Error + 'static)> {
         None
     }
 }
@@ -541,13 +547,11 @@ mod tests {
             "fail when given empty String"
         );
         assert!(
-            SsnPattern::parse("123456X7890").unwrap_err() == ParseError::Syntax("Invalid separator character", 6, 7),
+            SsnPattern::parse("123456X7890").unwrap_err()
+                == ParseError::Syntax("Invalid separator character", 6, 7),
             "fail when separator is not valid character"
         );
-        assert!(
-            SsnPattern::parse("123456-7890").is_ok(),
-            "parse valid SSN"
-        );
+        assert!(SsnPattern::parse("123456-7890").is_ok(), "parse valid SSN");
         assert!(
             SsnPattern::parse("??????-????").is_ok(),
             "parse all wildcard input"
