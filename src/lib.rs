@@ -88,9 +88,9 @@ impl Ssn {
         let month = rng.gen_range(1, 13);
         let day = rng.gen_range(1, days_in_month(month, year) + 1);
         let separator = match year / 100 {
-            18 => "+",
-            19 => "-",
-            20 => "A",
+            18 => '+',
+            19 => '-',
+            20 => 'A',
             _ => panic!(),
         };
         let identifier = rng.gen_range(2, 900);
