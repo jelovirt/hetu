@@ -17,41 +17,44 @@ pub fn main() {
         return;
     }
 
-    if args.len() > 1 && &args[0] == "-p" {
-        match SsnPattern::parse(&args[1]) {
-            Err(ref err) => {
-                eprintln!(
-                    "Error: {}\n\n  {}\n  {}",
-                    err,
-                    &args[1],
-                    Red.paint(index_arrows(err))
-                );
-                process::exit(1)
-            }
-            Ok(pattern) => match Ssn::generate_by_pattern(&pattern) {
-                Ok(ref ssn) => println!("{}", ssn),
-                Err(ref err) => {
-                    eprintln!("Error: {}", err);
-                    process::exit(1)
-                }
-            },
-        }
+    if args.len() == 2 && (&args[0] == "-p" || &args[0] == "--pattern") {
+        generate(&args[1]);
+    } else if args.len() == 1 && *&args[0].starts_with("--pattern=") {
+        generate(&args[0][10..]);
     } else if args.len() == 1 && &args[0] == "-" {
         let stdin = io::stdin();
         for line in stdin.lock().lines() {
             parse(&(line.unwrap()));
         }
     } else if args.is_empty() {
-        let pattern = SsnPattern::new();
-        match Ssn::generate_by_pattern(&pattern) {
-            Ok(ref ssn) => println!("{}", ssn),
-            Err(ref err) => {
-                eprintln!("Error: {}", err);
-                process::exit(1)
-            }
-        }
+        generate_and_print(&SsnPattern::new());
     } else {
         parse(&args[0]);
+    }
+}
+
+fn generate(pattern: &str) {
+    match SsnPattern::parse(pattern) {
+        Err(ref err) => {
+            eprintln!(
+                "Error: {}\n\n  {}\n  {}",
+                err,
+                pattern,
+                Red.paint(index_arrows(err))
+            );
+            process::exit(1)
+        }
+        Ok(pattern) => generate_and_print(&pattern),
+    }
+}
+
+fn generate_and_print(pattern: &SsnPattern) {
+    match Ssn::generate_by_pattern(&pattern) {
+        Ok(ref ssn) => println!("{}", ssn),
+        Err(ref err) => {
+            eprintln!("Error: {}", err);
+            process::exit(1)
+        }
     }
 }
 
@@ -72,16 +75,34 @@ fn parse(ssn: &str) {
 
 fn help() {
     println!(
-        "Validator and generator for Finnish SSN
+        "Validator and generator for Finnish Personal Identity Code (HETU).
 
 Usage:
-    hetu <ssn>
-    hetu -
-    hetu -p <pattern>
-    hetu [options]
+    hetu <HETU>         Validate argument HETU.
+    hetu -              Read input from standard input and validate.
+    hetu                Generate HETU.
+    hetu -p <PATTERN>   Generate HETU using pattern.
 
 Options:
-    -h, --help          Display this message
+    -h, --help
+            Print this help message.
+    -p, --pattern <pattern>
+            Generate HETU by pattern. Patterns use a question mark ('?') for wildcard and wildcards
+            can appear at any location in the pattern.
+
+Arguments:
+    <HETU>
+            Validate argument HETU. Use a dash ('-') to read from standard input.
+
+Examples:
+    * Validate HETU:
+
+        $ hetu 291269-2763
+
+    * Generate HETU by pattern:
+
+        $ hetu -p '291269-????'
+        291269-7767
 "
     );
 }
