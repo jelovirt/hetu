@@ -107,41 +107,58 @@ impl Ssn {
         let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
         let year = century + decade * 10 + y2;
 
-        let m1 = pattern
-            .m1
-            .unwrap_or_else(|| rng.gen_range(if pattern.m2.unwrap_or(1) == 0 { 1 } else { 0 }, 2))
-            as usize;
-        let m2 = pattern.m2.unwrap_or_else(|| {
-            rng.gen_range(if m1 == 0 { 1 } else { 0 }, if m1 == 1 { 3 } else { 10 })
-        }) as usize;
-        let month = m1 * 10 + m2;
+        let month: usize = match (pattern.m1, pattern.m2) {
+            (Some(ref m1), Some(ref m2)) => {
+                let m = (m1 * 10 + m2) as usize;
+                if !(1..=12).contains(&m) {
+                    return Err(GenerateError);
+                };
+                m
+            }
+            (Some(ref m1), None) => {
+                let m2 = rng.gen_range(if *m1 == 0 { 1 } else { 0 }, if *m1 == 0 { 10 } else { 3 });
+                (m1 * 10 + m2) as usize
+            }
+            (None, Some(ref m2)) => {
+                let m1 = rng.gen_range(if *m2 == 0 { 1 } else { 0 }, 2);
+                (m1 * 10 + m2) as usize
+            }
+            (None, None) => rng.gen_range(1, 13),
+        };
 
         let days_in_month = days_in_month(month, year);
-        let d1 = pattern.d1.unwrap_or_else(|| {
-            rng.gen_range(
-                if pattern.d2.unwrap_or(1) == 0 { 1 } else { 0 },
-                if days_in_month % 10 == 3 { 4 } else { 3 },
-            )
-        }) as usize;
-        let d2 = pattern.d2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-        let day = d1 * 10 + d2;
+        let day: usize = match (pattern.d1, pattern.d2) {
+            (Some(ref d1), Some(ref d2)) => {
+                let d = (d1 * 10 + d2) as usize;
+                if d < 1 || d > days_in_month {
+                    return Err(GenerateError);
+                };
+                d
+            }
+            (Some(ref d1), None) => {
+                if *d1 < 1 || *d1 as usize > days_in_month / 10 {
+                    return Err(GenerateError);
+                };
+                let d2 = rng.gen_range(if *d1 as usize == 0 { 1 } else { 0 }, 10);
+                *d1 as usize * 10 + d2
+            }
+            (None, Some(ref d2)) => {
+                let d1 = rng.gen_range(
+                    if *d2 as usize == 0 { 1 } else { 0 },
+                    if days_in_month % 10 == 3 { 4 } else { 3 },
+                ) as usize;
+                d1 * 10 + *d2 as usize
+            }
+            (None, None) => rng.gen_range(1, days_in_month + 1),
+        };
 
         let (identifier, checksum) = if pattern.check.is_some() {
-            let get_numbers = |num: Option<u8>| -> Vec<u8> {
-                num.map(|v| vec![v])
-                    .unwrap_or_else(|| vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-            };
             let res = || -> Option<(usize, char)> {
                 let exp = pattern.check.unwrap();
-                for i1 in get_numbers(pattern.i1) {
-                    for i2 in get_numbers(pattern.i2) {
-                        for i3 in get_numbers(pattern.i3) {
-                            let identifier = i1 as usize * 100 + i2 as usize * 10 + i3 as usize;
-                            let checksum = checksum_num(day, month, year, identifier);
-                            if checksum == exp {
-                                return Some((identifier, checksum));
-                            }
-                        }
+                for identifier in 2..=899 {
+                    let checksum = checksum_num(day, month, year, identifier);
+                    if checksum == exp {
+                        return Some((identifier, checksum));
                     }
                 }
                 None
@@ -151,9 +168,12 @@ impl Ssn {
                 None => return Err(GenerateError),
             }
         } else {
-            let i1 = pattern.i1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+            let i1 = pattern.i1.unwrap_or_else(|| rng.gen_range(0, 9)) as usize;
             let i2 = pattern.i2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-            let i3 = pattern.i3.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+            let i3 = pattern
+                .i3
+                .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
+                as usize;
             let identifier = i1 * 100 + i2 * 10 + i3;
             let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
             let checksum = CHECKSUM_TABLE[nums % 31];
