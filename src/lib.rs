@@ -223,10 +223,7 @@ impl SsnPattern {
             check: None,
         }
     }
-    fn parse_char(
-        chars: &str, // chars: &Vec<char>,
-        index: usize,
-    ) -> Result<Option<u8>, ParseError> {
+    fn parse_char(chars: &str, index: usize) -> Result<Option<u8>, ParseError> {
         let c = chars.chars().nth(index).unwrap();
         if c == '?' {
             Ok(None)
