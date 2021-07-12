@@ -43,7 +43,7 @@ fn y2_range(rng: &mut ThreadRng, y2: &Option<u8>) -> Vec<usize> {
 }
 
 fn m_range(m1: &Option<u8>, m2: &Option<u8>) -> Result<Vec<usize>, GenerateError> {
-    let mut range = match (m1, m2) {
+    let range = match (m1, m2) {
         (Some(ref m1), Some(ref m2)) => {
             let m = (m1 * 10 + m2) as usize;
             if !(1..=12).contains(&m) {
@@ -161,6 +161,9 @@ pub fn generate_by_pattern_with_any_checksum(
         .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
         as usize;
     let identifier = i1 * 100 + i2 * 10 + i3;
+    if identifier < 2 || identifier > 899 {
+        return Err(GenerateError);
+    }
     let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
     let checksum = CHECKSUM_TABLE[nums % 31];
 
@@ -572,10 +575,10 @@ fn checksum(ssn: &str) -> char {
     let nums: usize = (&hello).parse().unwrap();
     CHECKSUM_TABLE[nums % 31]
 }
-fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
-    let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
-    CHECKSUM_TABLE[nums % 31]
-}
+// fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
+//     let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
+//     CHECKSUM_TABLE[nums % 31]
+// }
 
 fn is_leap_year(year: usize) -> bool {
     ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)
@@ -586,52 +589,85 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse() {
+    fn test_parse_empty_string() {
         assert!(
             Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
             "fail when given empty String"
         );
+    }
+    #[test]
+    fn test_parse_month_too_large() {
         assert!(
             Ssn::parse("301398-1233").unwrap_err()
                 == ParseError::Month("Invalid month number", 2, 4),
             "fail when given birthdate with month out of bounds"
         );
+    }
+    #[test]
+    fn test_parse_day_too_large() {
         assert!(
             Ssn::parse("320198-123P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birthdate with date out of bounds in January"
         );
+    }
+    #[test]
+    fn test_parse_day_too_large_on_non_leap_year() {
         assert!(
             Ssn::parse("290299-123U").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birthdate with date out of bounds in February, non leap year"
         );
+    }
+    #[test]
+    fn test_parse_day_too_large_on_leap_year() {
         assert!(
             Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birth date with date out of bounds in February, a leap year"
         );
+    }
+    #[test]
+    fn test_parse_invalid_year_characters() {
         assert!(
             Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax("Date not integer", 0, 6),
             "fail when given birth date with alphabets"
         );
+    }
+    #[test]
+    fn test_parse_invalid_separator() {
         assert!(
             Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax("Invalid separator", 6, 7),
             "fail when given invalid separator chars"
         );
+    }
+    #[test]
+    fn test_parse_date_too_long() {
         assert!(
             Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 13),
             "fail when given too long date"
         );
+    }
+    #[test]
+    fn test_parse_date_too_short() {
         assert!(
             Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
             "fail when given too short date"
         );
+    }
+    #[test]
+    fn test_parse_identifier_too_long() {
         assert!(
             Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given too long checksum part"
         );
+    }
+    #[test]
+    fn test_parse_identifier_too_short() {
         assert!(
             Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
             "fail when given too long checksum part"
         );
+    }
+    #[test]
+    fn test_parse_male() {
         assert_eq!(
             Ssn::parse("010195+433X").unwrap(),
             Ssn {
@@ -641,6 +677,9 @@ mod tests {
                 gender: Gender::Male,
             }
         );
+    }
+    #[test]
+    fn test_parse_female() {
         assert_eq!(
             Ssn::parse("010197-100P").unwrap(),
             Ssn {
@@ -650,6 +689,9 @@ mod tests {
                 gender: Gender::Female,
             }
         );
+    }
+    #[test]
+    fn test_parse_1900s() {
         assert_eq!(
             Ssn::parse("010114A173M").unwrap(),
             Ssn {
@@ -659,6 +701,9 @@ mod tests {
                 gender: Gender::Male,
             }
         );
+    }
+    #[test]
+    fn test_parse_leap_year() {
         // pass when given valid finnishSSN with leap year, divisible only by 4
         assert_eq!(
             Ssn::parse("290296-7808").unwrap(),
@@ -669,10 +714,16 @@ mod tests {
                 gender: Gender::Female,
             }
         );
+    }
+    #[test]
+    fn test_parse_invalid_day_on_leap_year() {
         assert!(
             Ssn::parse("290200-101P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
             "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400"
         );
+    }
+    #[test]
+    fn test_parse_leap_year_long() {
         // pass when given valid finnishSSN with leap year, divisible by 100 and by 400
         assert_eq!(
             Ssn::parse("290200A248A").unwrap(),
@@ -683,10 +734,16 @@ mod tests {
                 gender: Gender::Female,
             }
         );
+    }
+    #[test]
+    fn test_parse_leading_whitespace() {
         assert!(
             Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given SSN longer than 11 chars, bogus in the end"
         );
+    }
+    #[test]
+    fn test_parse_trailing_whitespace() {
         assert!(
             Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given SSN longer than 11 chars, bogus in the beginning"
@@ -701,16 +758,11 @@ mod tests {
 
     #[test]
     fn test_pattern_parse() {
-        assert!(
-            SsnPattern::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
-            "fail when given empty String"
-        );
-        assert!(
-            SsnPattern::parse("123456X7890").unwrap_err()
-                == ParseError::Syntax("Invalid separator character", 6, 7),
-            "fail when separator is not valid character"
-        );
         assert!(SsnPattern::parse("123456-7890").is_ok(), "parse valid SSN");
+    }
+
+    #[test]
+    fn test_pattern_parse_all_wildcard() {
         assert!(
             SsnPattern::parse("??????-????").is_ok(),
             "parse all wildcard input"
@@ -720,51 +772,65 @@ mod tests {
     use regex::Regex;
 
     macro_rules! ssn_generate_success {
-        ($($name:ident: $value:expr,)*) => {
-        $(
+        ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
                 let pattern = &SsnPattern::parse($value).unwrap();
                 let generated = Ssn::generate_by_pattern(pattern).unwrap();
-                // println!("{} -> {}", $value, generated);
-                assert!(
-                    Regex::new($value.replace("?", ".").as_str())
-                        .unwrap()
-                        .is_match(&generated),
-                    "retain expected values"
-                );
+                let matcher = Regex::new($value.replace("?", ".").as_str()).unwrap();
+                assert!(matcher.is_match(&generated), "retain expected values");
                 assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN");
             }
-        )*
-        }
+        )*}
+    }
+
+    ssn_generate_success! {
+        first_day_of_year_wildcard: "010100-????",
+        first_day_of_year_fixed: "010100-???A",
+        identifier_smallest_wildcard: "???????002?",
+        identifier_smallest_fixed: "???????002A",
+        identifier_biggest_wildcard: "???????899?",
+        identifier_biggest_fixed: "???????899A",
+        decade_smallest_wildcard: "??????+????",
+        decade_smallest_fixed: "??????+???A",
+        decade_biggest_wildcard: "??????A????",
+        decade_biggest_fixed: "??????A???A",
+        month_smallest_wildcard: "??01???????",
+        month_smallest_fixed: "??01??????A",
+        month_biggest_wildcard: "??12???????",
+        month_biggest_fixed: "??12??????A",
+        day_smallest_wildcard: "01?????????",
+        day_smallest_fixed: "01????????A",
+        day_biggest_wildcard: "01?????????",
+        day_biggest_fixed: "01????????A",
     }
 
     macro_rules! ssn_generate_failure {
-        ($($name:ident: $value:expr,)*) => {
-        $(
+        ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
                 let pattern = &SsnPattern::parse($value).unwrap();
                 assert!(Ssn::generate_by_pattern(pattern).is_err());
             }
-        )*
-        }
-    }
-
-    ssn_generate_success! {
-        wildcard_checksum: "111111-111?",
-        first_day_of_year: "010100-????",
-        fixed_checksum: "??????????A",
-        identifier_smallest: "???????002?",
-        identifier_biggest: "???????899?",
-        month_smallest: "??01???????",
-        month_biggest: "??12???????",
+        )*}
     }
 
     ssn_generate_failure! {
-        identifier_too_small: "???????001?",
-        identifier_too_large: "???????900?",
-        month_too_small: "??00???????",
-        month_too_large: "??13???????",
+        identifier_too_small_wildcard: "???????001?",
+        identifier_too_small_fixed: "???????001A",
+        identifier_too_large_wildcard: "???????900?",
+        identifier_too_large_fixed: "???????900A",
+        month_too_small_wildcard: "??00???????",
+        month_too_small_fixed: "??00??????A",
+        month_too_large_wildcard: "??13???????",
+        month_too_large_fixed: "??13??????A",
+        day_too_small_wildcard: "00?????????",
+        day_too_small_fixed: "00????????A",
+        day_too_large_wildcard: "32?????????",
+        day_too_large_fixed: "32????????A",
+        day_too_large_on_non_leap_year_wilcard: "290299-????",
+        day_too_large_on_non_leap_year_fixed: "290299-???A",
+        day_too_large_on_leap_year_wildcard: "300204-????",
+        day_too_large_on_leap_year_fixed: "300204-???A",
     }
 }
