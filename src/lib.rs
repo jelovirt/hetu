@@ -1,7 +1,8 @@
 extern crate core;
 extern crate rand;
+extern crate regex;
 
-use rand::Rng;
+use rand::{Rng, ThreadRng};
 use std::error;
 use std::fmt;
 
@@ -13,6 +14,241 @@ pub struct Ssn {
     pub gender: Gender,
 }
 
+fn century_range(sep: &Option<char>) -> Result<Vec<usize>, GenerateError> {
+    match sep {
+        Some(c) => match from_separator(c) {
+            Ok(v) => Ok(vec![v]),
+            Err(_) => return Err(GenerateError),
+        },
+        None => Ok(vec![1800usize, 1900usize, 2000usize]),
+    }
+}
+
+fn decade_range(y1: &Option<u8>) -> Vec<usize> {
+    match y1 {
+        Some(v) => vec![*v as usize],
+        None => (0usize..=9usize).collect(),
+    }
+}
+
+fn y2_range(rng: &mut ThreadRng, y2: &Option<u8>) -> Vec<usize> {
+    match y2 {
+        Some(v) => vec![*v as usize],
+        None => {
+            let mut range: Vec<usize> = (0usize..=9usize).collect();
+            rng.shuffle(&mut range);
+            range
+        }
+    }
+}
+
+fn m_range(m1: &Option<u8>, m2: &Option<u8>) -> Result<Vec<usize>, GenerateError> {
+    let mut range = match (m1, m2) {
+        (Some(ref m1), Some(ref m2)) => {
+            let m = (m1 * 10 + m2) as usize;
+            if !(1..=12).contains(&m) {
+                return Err(GenerateError);
+            };
+            vec![m]
+        }
+        (Some(ref m1), None) => ((if *m1 == 0 { 1 } else { 0 })..(if *m1 == 0 { 10 } else { 3 }))
+            .map(|m2| (m1 * 10 + m2) as usize)
+            .collect(),
+        (None, Some(ref m2)) => ((if *m2 == 0 { 1 } else { 0 })..2)
+            .map(|m1| (m1 * 10 + m2) as usize)
+            .collect(),
+        (None, None) => (1usize..13usize).collect(),
+    };
+    Ok(range)
+}
+
+fn d_range(d1: &Option<u8>, d2: &Option<u8>) -> Result<Vec<usize>, GenerateError> {
+    match (d1, d2) {
+        (Some(ref d1), Some(ref d2)) => {
+            let d = (d1 * 10 + d2) as usize;
+            if d < 1 {
+                return Err(GenerateError);
+            };
+            Ok(vec![d])
+        }
+        (Some(ref d1), None) => {
+            // if *d1 < 1 || *d1 as usize > days_in_month / 10 {
+            //     return Err(GenerateError);
+            // };
+            Ok(((if *d1 as usize == 0 { 1 } else { 0 })..10)
+                .map(|d2| *d1 as usize * 10 + d2)
+                .collect())
+        }
+        (None, Some(ref d2)) => {
+            Ok(((if *d2 as usize == 0 { 1 } else { 0 })
+                ..(/*if days_in_month % 10 == 3 { 4 } else { 3 }*/4))
+                .map(|d1| d1 * 10 + *d2 as usize)
+                .collect())
+        }
+        (None, None) => Ok(
+            // (1..(days_in_month + 1)).collect()
+            (1..32).collect(),
+        ),
+    }
+}
+
+pub fn generate_by_pattern_with_any_checksum(
+    pattern: &SsnPattern,
+) -> Result<String, GenerateError> {
+    let mut rng = rand::thread_rng();
+
+    let century = match pattern
+        .sep
+        .map(|c| from_separator(&c))
+        .unwrap_or_else(|| Ok(1800 + rng.gen_range(0, 3) * 100))
+    {
+        Ok(v) => v,
+        Err(_) => return Err(GenerateError),
+    };
+    let decade = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+    let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+    let year = century + decade * 10 + y2;
+
+    let month: usize = match (pattern.m1, pattern.m2) {
+        (Some(ref m1), Some(ref m2)) => {
+            let m = (m1 * 10 + m2) as usize;
+            if !(1..=12).contains(&m) {
+                return Err(GenerateError);
+            };
+            m
+        }
+        (Some(ref m1), None) => {
+            let m2 = rng.gen_range(if *m1 == 0 { 1 } else { 0 }, if *m1 == 0 { 10 } else { 3 });
+            (m1 * 10 + m2) as usize
+        }
+        (None, Some(ref m2)) => {
+            let m1 = rng.gen_range(if *m2 == 0 { 1 } else { 0 }, 2);
+            (m1 * 10 + m2) as usize
+        }
+        (None, None) => rng.gen_range(1, 13),
+    };
+
+    let days_in_month = days_in_month(month, year);
+    let day: usize = match (pattern.d1, pattern.d2) {
+        (Some(ref d1), Some(ref d2)) => {
+            let d = (d1 * 10 + d2) as usize;
+            if d < 1 || d > days_in_month {
+                return Err(GenerateError);
+            };
+            d
+        }
+        (Some(ref d1), None) => {
+            if *d1 < 1 || *d1 as usize > days_in_month / 10 {
+                return Err(GenerateError);
+            };
+            let d2 = rng.gen_range(if *d1 as usize == 0 { 1 } else { 0 }, 10);
+            *d1 as usize * 10 + d2
+        }
+        (None, Some(ref d2)) => {
+            let d1 = rng.gen_range(
+                if *d2 as usize == 0 { 1 } else { 0 },
+                if days_in_month % 10 == 3 { 4 } else { 3 },
+            ) as usize;
+            d1 * 10 + *d2 as usize
+        }
+        (None, None) => rng.gen_range(1, days_in_month + 1),
+    };
+
+    let i1 = pattern.i1.unwrap_or_else(|| rng.gen_range(0, 9)) as usize;
+    let i2 = pattern.i2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+    let i3 = pattern
+        .i3
+        .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
+        as usize;
+    let identifier = i1 * 100 + i2 * 10 + i3;
+    let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
+    let checksum = CHECKSUM_TABLE[nums % 31];
+
+    Ok(format!(
+        "{:02.}{:02.}{:02.}{}{:03.}{}",
+        day,
+        month,
+        year % 100,
+        to_separator(century)?,
+        identifier,
+        checksum
+    ))
+}
+
+pub fn generate_by_pattern_with_fixed_checksum(
+    pattern: &SsnPattern,
+) -> Result<String, GenerateError> {
+    let mut rng = rand::thread_rng();
+    let mut centuries = century_range(&pattern.sep)?;
+    rng.shuffle(&mut centuries);
+    let mut decades = decade_range(&pattern.y1);
+    rng.shuffle(&mut decades);
+    let mut y2s = y2_range(&mut rng, &pattern.y2);
+    rng.shuffle(&mut y2s);
+    let mut months = m_range(&pattern.m1, &pattern.m2)?;
+    rng.shuffle(&mut months);
+    let mut days = d_range(&pattern.d1, &pattern.d2)?;
+    rng.shuffle(&mut days);
+    let mut i1s = pattern
+        .i1
+        .map(|v| vec![v as usize])
+        .unwrap_or_else(|| (0usize..=9usize).collect());
+    rng.shuffle(&mut i1s);
+    let mut i2s = pattern
+        .i2
+        .map(|v| vec![v as usize])
+        .unwrap_or_else(|| (0usize..=9usize).collect());
+    rng.shuffle(&mut i2s);
+    let mut i3s = pattern
+        .i3
+        .map(|v| vec![v as usize])
+        // .unwrap_or_else(|| ((if i1 == 0 && i2 == 0 { 2usize } else { 0usize })..10usize)
+        .unwrap_or_else(|| (0usize..=9usize).collect());
+    rng.shuffle(&mut i3s);
+    for century in &centuries {
+        for decade in &decades {
+            for y2 in &y2s {
+                let year = century + decade * 10 + y2;
+                for month in &months {
+                    let days_in_this_month = days_in_month(*month, year);
+                    for day in days.iter().filter(|d| d <= &&days_in_this_month) {
+                        for i1 in &i1s {
+                            for i2 in &i2s {
+                                for i3 in &i3s {
+                                    let identifier = i1 * 100 + i2 * 10 + i3;
+                                    if identifier < 002 || identifier > 899 {
+                                        continue;
+                                    }
+                                    let nums = day * 10_000_000
+                                        + month * 100_000
+                                        + (year % 100) * 1_000
+                                        + identifier;
+                                    let exp_checksum = CHECKSUM_TABLE[nums % 31];
+                                    let checksum = &pattern.check.unwrap();
+                                    if exp_checksum != *checksum {
+                                        // println!("{} != {} was not valid guess", exp_checksum, checksum);
+                                        continue;
+                                    }
+                                    return Ok(format!(
+                                        "{:02.}{:02.}{:02.}{}{:03.}{}",
+                                        day,
+                                        month,
+                                        year % 100,
+                                        to_separator(*century)?,
+                                        identifier,
+                                        checksum
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Err(GenerateError)
+}
+
 impl Ssn {
     /// Parse HETU.
     pub fn parse(ssn: &str) -> Result<Ssn, ParseError> {
@@ -22,7 +258,7 @@ impl Ssn {
         let chars: Vec<char> = ssn.chars().collect();
 
         let separator = chars[6];
-        from_separator(separator)?;
+        from_separator(&separator)?;
 
         let date: usize = match ssn[0..6].parse::<usize>() {
             Ok(n) => n,
@@ -34,7 +270,7 @@ impl Ssn {
             return Err(ParseError::Month("Invalid month number", 2, 4));
         }
 
-        let year = date % 100 + from_separator(separator)?;
+        let year = date % 100 + from_separator(&separator)?;
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10_000;
@@ -93,107 +329,15 @@ impl Ssn {
 
     /// Generate HETU with matching fields.
     pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
-        let mut rng = rand::thread_rng();
-
-        let century = match pattern
-            .sep
-            .map(|c| from_separator(c))
-            .unwrap_or_else(|| Ok(1800 + rng.gen_range(0, 3) * 100))
-        {
-            Ok(v) => v,
-            Err(_) => return Err(GenerateError),
-        };
-        let decade = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-        let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-        let year = century + decade * 10 + y2;
-
-        let month: usize = match (pattern.m1, pattern.m2) {
-            (Some(ref m1), Some(ref m2)) => {
-                let m = (m1 * 10 + m2) as usize;
-                if !(1..=12).contains(&m) {
-                    return Err(GenerateError);
-                };
-                m
-            }
-            (Some(ref m1), None) => {
-                let m2 = rng.gen_range(if *m1 == 0 { 1 } else { 0 }, if *m1 == 0 { 10 } else { 3 });
-                (m1 * 10 + m2) as usize
-            }
-            (None, Some(ref m2)) => {
-                let m1 = rng.gen_range(if *m2 == 0 { 1 } else { 0 }, 2);
-                (m1 * 10 + m2) as usize
-            }
-            (None, None) => rng.gen_range(1, 13),
-        };
-
-        let days_in_month = days_in_month(month, year);
-        let day: usize = match (pattern.d1, pattern.d2) {
-            (Some(ref d1), Some(ref d2)) => {
-                let d = (d1 * 10 + d2) as usize;
-                if d < 1 || d > days_in_month {
-                    return Err(GenerateError);
-                };
-                d
-            }
-            (Some(ref d1), None) => {
-                if *d1 < 1 || *d1 as usize > days_in_month / 10 {
-                    return Err(GenerateError);
-                };
-                let d2 = rng.gen_range(if *d1 as usize == 0 { 1 } else { 0 }, 10);
-                *d1 as usize * 10 + d2
-            }
-            (None, Some(ref d2)) => {
-                let d1 = rng.gen_range(
-                    if *d2 as usize == 0 { 1 } else { 0 },
-                    if days_in_month % 10 == 3 { 4 } else { 3 },
-                ) as usize;
-                d1 * 10 + *d2 as usize
-            }
-            (None, None) => rng.gen_range(1, days_in_month + 1),
-        };
-
-        let (identifier, checksum) = if pattern.check.is_some() {
-            let res = || -> Option<(usize, char)> {
-                let exp = pattern.check.unwrap();
-                for identifier in 2..=899 {
-                    let checksum = checksum_num(day, month, year, identifier);
-                    if checksum == exp {
-                        return Some((identifier, checksum));
-                    }
-                }
-                None
-            }();
-            match res {
-                Some((i, c)) => (i, c),
-                None => return Err(GenerateError),
-            }
-        } else {
-            let i1 = pattern.i1.unwrap_or_else(|| rng.gen_range(0, 9)) as usize;
-            let i2 = pattern.i2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
-            let i3 = pattern
-                .i3
-                .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
-                as usize;
-            let identifier = i1 * 100 + i2 * 10 + i3;
-            let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
-            let checksum = CHECKSUM_TABLE[nums % 31];
-            (identifier, checksum)
-        };
-
-        Ok(format!(
-            "{:02.}{:02.}{:02.}{}{:03.}{}",
-            day,
-            month,
-            year % 100,
-            to_separator(century)?,
-            identifier,
-            checksum
-        ))
+        match &pattern.check {
+            Some(_) => generate_by_pattern_with_fixed_checksum(pattern),
+            None => generate_by_pattern_with_any_checksum(pattern),
+        }
     }
 }
 
 /** Parse separator into century. */
-fn from_separator<'a>(separator: char) -> Result<usize, ParseError<'a>> {
+fn from_separator<'a>(separator: &char) -> Result<usize, ParseError<'a>> {
     match separator {
         '+' => Ok(1800),
         '-' => Ok(1900),
@@ -573,12 +717,54 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_generate_pattern() {
-        assert!(
-            Ssn::generate_by_pattern(&SsnPattern::parse("111111-111?").unwrap()).unwrap()
-                == "111111-111C",
-            "generate expected SSN"
-        );
+    use regex::Regex;
+
+    macro_rules! ssn_generate_success {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let pattern = &SsnPattern::parse($value).unwrap();
+                let generated = Ssn::generate_by_pattern(pattern).unwrap();
+                // println!("{} -> {}", $value, generated);
+                assert!(
+                    Regex::new($value.replace("?", ".").as_str())
+                        .unwrap()
+                        .is_match(&generated),
+                    "retain expected values"
+                );
+                assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN");
+            }
+        )*
+        }
+    }
+
+    macro_rules! ssn_generate_failure {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let pattern = &SsnPattern::parse($value).unwrap();
+                assert!(Ssn::generate_by_pattern(pattern).is_err());
+            }
+        )*
+        }
+    }
+
+    ssn_generate_success! {
+        wildcard_checksum: "111111-111?",
+        first_day_of_year: "010100-????",
+        fixed_checksum: "??????????A",
+        identifier_smallest: "???????002?",
+        identifier_biggest: "???????899?",
+        month_smallest: "??01???????",
+        month_biggest: "??12???????",
+    }
+
+    ssn_generate_failure! {
+        identifier_too_small: "???????001?",
+        identifier_too_large: "???????900?",
+        month_too_small: "??00???????",
+        month_too_large: "??13???????",
     }
 }
