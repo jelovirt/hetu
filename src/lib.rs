@@ -426,8 +426,10 @@ impl SsnPattern {
         let i3: Option<u8> = SsnPattern::parse_char(&p, 9)?;
         let check: Option<char> = match p.chars().nth(10).unwrap() {
             '?' => None,
-            // TODO validate that this is checksum character
-            sep => Some(sep),
+            sep if CHECKSUM_TABLE.contains(&sep) => Some(sep),
+            _ => {
+                return Err(ParseError::Syntax("Invalid checksum character", 10, 11));
+            }
         };
         Ok(SsnPattern {
             d1,
@@ -766,6 +768,14 @@ mod tests {
         assert!(
             SsnPattern::parse("??????-????").is_ok(),
             "parse all wildcard input"
+        );
+    }
+
+    #[test]
+    fn test_pattern_parse_invalid_checksum() {
+        assert!(
+            SsnPattern::parse("??????-???O").is_err(),
+            "invalid checksum"
         );
     }
 
