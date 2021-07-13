@@ -19,7 +19,7 @@ pub fn main() {
 
     if args.len() == 2 && (&args[0] == "-p" || &args[0] == "--pattern") {
         generate(&args[1]);
-    } else if args.len() == 1 && *&args[0].starts_with("--pattern=") {
+    } else if args.len() == 1 && args[0].starts_with("--pattern=") {
         generate(&args[0][10..]);
     } else if args.len() == 1 && &args[0] == "-" {
         let stdin = io::stdin();

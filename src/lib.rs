@@ -18,7 +18,7 @@ fn century_range(sep: &Option<char>) -> Result<Vec<usize>, GenerateError> {
     match sep {
         Some(c) => match from_separator(c) {
             Ok(v) => Ok(vec![v]),
-            Err(_) => return Err(GenerateError),
+            Err(_) => Err(GenerateError),
         },
         None => Ok(vec![1800usize, 1900usize, 2000usize]),
     }
@@ -161,7 +161,7 @@ pub fn generate_by_pattern_with_any_checksum(
         .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
         as usize;
     let identifier = i1 * 100 + i2 * 10 + i3;
-    if identifier < 2 || identifier > 899 {
+    if !(2..=899).contains(&identifier) {
         return Err(GenerateError);
     }
     let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
@@ -219,7 +219,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
                             for i2 in &i2s {
                                 for i3 in &i3s {
                                     let identifier = i1 * 100 + i2 * 10 + i3;
-                                    if identifier < 002 || identifier > 899 {
+                                    if !(2..=899).contains(&identifier) {
                                         continue;
                                     }
                                     let nums = day * 10_000_000
