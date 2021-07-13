@@ -1,6 +1,5 @@
 extern crate core;
 extern crate rand;
-extern crate regex;
 
 use rand::{Rng, ThreadRng};
 use std::error;
@@ -585,6 +584,9 @@ fn checksum(ssn: &str) -> char {
 fn is_leap_year(year: usize) -> bool {
     ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)
 }
+
+#[cfg(test)]
+extern crate regex;
 
 #[cfg(test)]
 mod tests {
