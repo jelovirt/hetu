@@ -160,7 +160,7 @@ pub fn generate_by_pattern_with_any_checksum(
         .unwrap_or_else(|| rng.gen_range(if i1 == 0 && i2 == 0 { 2 } else { 0 }, 10))
         as usize;
     let identifier = i1 * 100 + i2 * 10 + i3;
-    if !(2..=899).contains(&identifier) {
+    if identifier < 2 {
         return Err(GenerateError);
     }
     let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
@@ -194,7 +194,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
     let mut i1s = pattern
         .i1
         .map(|v| vec![v as usize])
-        .unwrap_or_else(|| (0usize..=9usize).collect());
+        .unwrap_or_else(|| (0usize..=8usize).collect());
     rng.shuffle(&mut i1s);
     let mut i2s = pattern
         .i2
@@ -218,7 +218,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
                             for i2 in &i2s {
                                 for i3 in &i3s {
                                     let identifier = i1 * 100 + i2 * 10 + i3;
-                                    if !(2..=899).contains(&identifier) {
+                                    if identifier < 2 {
                                         continue;
                                     }
                                     let nums = day * 10_000_000
@@ -308,6 +308,10 @@ impl Ssn {
     }
 
     /// Generate random HETU.
+    ///
+    /// Temporary HETU with identifier range of 900-999 will never be created. To generate a
+    /// temporary HETU, use `Ssn::generate_by_pattern(pattern)` with pattern that explicity has '9' as the
+    /// first character of the identifier part.
     pub fn generate() -> String {
         let mut rng = rand::thread_rng();
 
@@ -781,6 +785,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_generate_never_temporary_identifier_with_wilcard() {
+        for _i in 0..1_000_000 {
+            let generated = Ssn::generate();
+            let first_identifier = generated.chars().nth(7).unwrap();
+            assert_ne!(
+                first_identifier, '9',
+                "never generate identifier in range of 900-999"
+            );
+        }
+    }
+
     use regex::Regex;
 
     macro_rules! ssn_generate_success {
@@ -830,8 +846,6 @@ mod tests {
     ssn_generate_failure! {
         identifier_too_small_wildcard: "???????001?",
         identifier_too_small_fixed: "???????001A",
-        identifier_too_large_wildcard: "???????900?",
-        identifier_too_large_fixed: "???????900A",
         month_too_small_wildcard: "??00???????",
         month_too_small_fixed: "??00??????A",
         month_too_large_wildcard: "??13???????",
