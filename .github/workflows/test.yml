@@ -15,6 +15,11 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/cargo@v1
         with:
           command: check
