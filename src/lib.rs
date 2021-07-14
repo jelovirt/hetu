@@ -168,7 +168,7 @@ pub fn generate_by_pattern_with_any_checksum(
     let checksum = CHECKSUM_TABLE[nums % 31];
 
     Ok(format!(
-        "{:02.}{:02.}{:02.}{}{:03.}{}",
+        "{:02}{:02}{:02}{}{:03}{}",
         day,
         month,
         year % 100,
@@ -233,7 +233,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
                                         continue;
                                     }
                                     return Ok(format!(
-                                        "{:02.}{:02.}{:02.}{}{:03.}{}",
+                                        "{:02}{:02}{:02}{}{:03}{}",
                                         day,
                                         month,
                                         year % 100,
@@ -363,18 +363,18 @@ impl Iterator for SsnIterator {
                 self.offset += 1;
             }
             // year
-            let century_index = (self.offset % self.bases[0]) / 1;
-            let century = self.all[century_index + self.offsets[0]];
-            let decade_index = (self.offset % self.bases[1]) / self.bases[0];
-            let decade = self.all[decade_index + self.offsets[1]];
-            let y2_index = (self.offset % self.bases[2]) / self.bases[1];
-            let y2 = self.all[y2_index + self.offsets[2]];
+            let century_index = (self.offset % self.bases[0]) / 1 + self.offsets[0];
+            let century = self.all[century_index];
+            let decade_index = (self.offset % self.bases[1]) / self.bases[0] + self.offsets[1];
+            let decade = self.all[decade_index];
+            let y2_index = (self.offset % self.bases[2]) / self.bases[1] + self.offsets[2];
+            let y2 = self.all[y2_index];
             // month
-            let month_index = (self.offset % self.bases[3]) / self.bases[2];
-            let month = self.all[month_index + self.offsets[3]];
+            let month_index = (self.offset % self.bases[3]) / self.bases[2] + self.offsets[3];
+            let month = self.all[month_index];
             // day
-            let day_index = (self.offset % self.bases[4]) / self.bases[3];
-            let day = self.all[day_index + self.offsets[4]];
+            let day_index = (self.offset % self.bases[4]) / self.bases[3] + self.offsets[4];
+            let day = self.all[day_index];
             let year = century + decade * 10 + y2;
             let days_in_this_month = days_in_month(month, year);
             if day >= days_in_this_month {
@@ -382,12 +382,12 @@ impl Iterator for SsnIterator {
                 continue;
             }
             // identifier
-            let i1_index = (self.offset % self.bases[5]) / self.bases[4];
-            let i1 = self.all[i1_index + self.offsets[5]];
-            let i2_index = (self.offset % self.bases[6]) / self.bases[5];
-            let i2 = self.all[i2_index + self.offsets[6]];
-            let i3_index = (self.offset % self.bases[7]) / self.bases[6];
-            let i3 = self.all[i3_index + self.offsets[7]];
+            let i1_index = (self.offset % self.bases[5]) / self.bases[4] + self.offsets[5];
+            let i1 = self.all[i1_index];
+            let i2_index = (self.offset % self.bases[6]) / self.bases[5] + self.offsets[6];
+            let i2 = self.all[i2_index];
+            let i3_index = (self.offset % self.bases[7]) / self.bases[6] + self.offsets[7];
+            let i3 = self.all[i3_index];
             let identifier = i1 * 100 + i2 * 10 + i3;
             if identifier < 2 {
                 println!("identifier was too small");
@@ -407,7 +407,7 @@ impl Iterator for SsnIterator {
                 None => exp_checksum,
             };
             return Some(format!(
-                "{:02.}{:02.}{:02.}{}{:03.}{}",
+                "{:02}{:02}{:02}{}{:03}{}",
                 day,
                 month,
                 year % 100,
@@ -492,7 +492,7 @@ impl Ssn {
         let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
         format!(
-            "{:02.}{:02.}{:02.}{}{:03.}{}",
+            "{:02}{:02}{:02}{}{:03}{}",
             day,
             month,
             year % 100,
