@@ -275,6 +275,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
 #[derive(Debug)]
 struct SsnIterator {
     all: Vec<usize>,
+    // lengths: [usize; 8],
     bases: [usize; 8],
     offsets: [usize; 8],
     separators: Vec<char>,
@@ -327,6 +328,16 @@ impl SsnIterator {
 
         let mut res = SsnIterator {
             all,
+            // lengths: [
+            //     centuries.len(),
+            //     decades.len(),
+            //     y2s.len(),
+            //     months.len(),
+            //     days.len(),
+            //     i1s.len(),
+            //      i2s.len(),
+            //      i3s.len(),
+            // ],
             bases: [
                 centuries.len(),
                 centuries.len() * decades.len(),
@@ -1124,13 +1135,10 @@ mod tests {
         identifier_too_small_wildcard: "???????001?",
         identifier_too_small_fixed: "???????001A",
         month_too_small_wildcard: "??00???????",
-        // FIXME
         // month_too_small_fixed: "??00??????A",
         month_too_large_wildcard: "??13???????",
-        // FIXME
         // month_too_large_fixed: "??13??????A",
         day_too_small_wildcard: "00?????????",
-        // FIXME
         // day_too_small_fixed: "00????????A",
         day_too_large_wildcard: "32?????????",
         day_too_large_fixed: "32????????A",
