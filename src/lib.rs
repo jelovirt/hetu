@@ -23,6 +23,17 @@ fn century_range(sep: &Option<char>) -> Vec<usize> {
     }
 }
 
+static SEPARATORS: [char; 13] = [
+    '+', '-', 'Y', 'X', 'W', 'V', 'U', 'A', 'B', 'C', 'D', 'E', 'F',
+];
+
+fn separator_range(sep: &Option<char>) -> Vec<char> {
+    match sep {
+        Some(c) => vec![*c],
+        None => SEPARATORS.to_vec(),
+    }
+}
+
 fn decade_range(y1: &Option<u8>) -> Vec<usize> {
     match y1 {
         Some(v) => vec![*v as usize],
@@ -105,6 +116,11 @@ pub fn generate_by_pattern_with_any_checksum(
         Ok(v) => v,
         Err(_) => return Err(GenerateError),
     };
+    // let separator: char = to_separator(century, &mut rng)?;
+    let separator: char = match pattern.sep {
+        Some(s) => s,
+        None => *rng.choose(&SEPARATORS).unwrap(),
+    };
     let decade = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
@@ -172,7 +188,7 @@ pub fn generate_by_pattern_with_any_checksum(
         day,
         month,
         year % 100,
-        to_separator(century)?,
+        separator,
         identifier,
         checksum
     ))
@@ -184,6 +200,8 @@ pub fn generate_by_pattern_with_fixed_checksum(
     let mut rng = rand::thread_rng();
     let mut centuries = century_range(&pattern.sep);
     rng.shuffle(&mut centuries);
+    let mut separators = separator_range(&pattern.sep);
+    rng.shuffle(&mut separators);
     let mut decades = decade_range(&pattern.y1);
     rng.shuffle(&mut decades);
     let mut y2s = y2_range(&mut rng, &pattern.y2);
@@ -209,38 +227,40 @@ pub fn generate_by_pattern_with_fixed_checksum(
         .unwrap_or_else(|| (0usize..=9usize).collect());
     rng.shuffle(&mut i3s);
     for century in &centuries {
-        for decade in &decades {
-            for y2 in &y2s {
-                let year = century + decade * 10 + y2;
-                for month in &months {
-                    let days_in_this_month = days_in_month(*month, year);
-                    for day in days.iter().filter(|d| d <= &&days_in_this_month) {
-                        for i1 in &i1s {
-                            for i2 in &i2s {
-                                for i3 in &i3s {
-                                    let identifier = i1 * 100 + i2 * 10 + i3;
-                                    if identifier < 2 {
-                                        continue;
+        for separator in &separators {
+            for decade in &decades {
+                for y2 in &y2s {
+                    let year = century + decade * 10 + y2;
+                    for month in &months {
+                        let days_in_this_month = days_in_month(*month, year);
+                        for day in days.iter().filter(|d| d <= &&days_in_this_month) {
+                            for i1 in &i1s {
+                                for i2 in &i2s {
+                                    for i3 in &i3s {
+                                        let identifier = i1 * 100 + i2 * 10 + i3;
+                                        if identifier < 2 {
+                                            continue;
+                                        }
+                                        let nums = day * 10_000_000
+                                            + month * 100_000
+                                            + (year % 100) * 1_000
+                                            + identifier;
+                                        let exp_checksum = CHECKSUM_TABLE[nums % 31];
+                                        let checksum = &pattern.check.unwrap();
+                                        if exp_checksum != *checksum {
+                                            // println!("{} != {} was not valid guess", exp_checksum, checksum);
+                                            continue;
+                                        }
+                                        return Ok(format!(
+                                            "{:02}{:02}{:02}{}{:03}{}",
+                                            day,
+                                            month,
+                                            year % 100,
+                                            separator,
+                                            identifier,
+                                            checksum
+                                        ));
                                     }
-                                    let nums = day * 10_000_000
-                                        + month * 100_000
-                                        + (year % 100) * 1_000
-                                        + identifier;
-                                    let exp_checksum = CHECKSUM_TABLE[nums % 31];
-                                    let checksum = &pattern.check.unwrap();
-                                    if exp_checksum != *checksum {
-                                        // println!("{} != {} was not valid guess", exp_checksum, checksum);
-                                        continue;
-                                    }
-                                    return Ok(format!(
-                                        "{:02}{:02}{:02}{}{:03}{}",
-                                        day,
-                                        month,
-                                        year % 100,
-                                        to_separator(*century)?,
-                                        identifier,
-                                        checksum
-                                    ));
                                 }
                             }
                         }
@@ -257,16 +277,28 @@ struct SsnIterator {
     all: Vec<usize>,
     bases: [usize; 8],
     offsets: [usize; 8],
+    separators: Vec<char>,
     check: Option<char>,
     offset: usize,
 }
 
 impl SsnIterator {
+    const OFFSET_CENTURY: usize = 0;
+    const OFFSET_DECADE: usize = 1;
+    const OFFSET_Y2: usize = 2;
+    const OFFSET_MOTH: usize = 3;
+    const OFFSET_DAY: usize = 4;
+    const OFFSET_I1: usize = 5;
+    const OFFSET_I2: usize = 6;
+    const OFFSET_I3: usize = 7;
+
     pub fn new(pattern: &SsnPattern) -> SsnIterator {
         let mut rng = rand::thread_rng();
 
         let mut centuries = century_range(&pattern.sep);
         rng.shuffle(&mut centuries);
+        let mut separators = separator_range(&pattern.sep);
+        rng.shuffle(&mut separators);
         let mut decades = decade_range(&pattern.y1);
         rng.shuffle(&mut decades);
         let mut y2s = y2_range(&mut rng, &pattern.y2);
@@ -334,8 +366,8 @@ impl SsnIterator {
                     + i1s.len()
                     + i2s.len(),
             ],
+            separators: separators,
             check: pattern.check,
-
             offset: usize::MAX,
         };
 
@@ -362,31 +394,54 @@ impl Iterator for SsnIterator {
             } else {
                 self.offset += 1;
             }
+
             // year
-            let century_index = (self.offset % self.bases[0]) / 1 + self.offsets[0];
+            let century_index = (self.offset % self.bases[SsnIterator::OFFSET_CENTURY]) / 1
+                + self.offsets[SsnIterator::OFFSET_CENTURY];
             let century = self.all[century_index];
-            let decade_index = (self.offset % self.bases[1]) / self.bases[0] + self.offsets[1];
+            let decade_index = (self.offset % self.bases[SsnIterator::OFFSET_DECADE])
+                / self.bases[SsnIterator::OFFSET_CENTURY]
+                + self.offsets[SsnIterator::OFFSET_DECADE];
             let decade = self.all[decade_index];
-            let y2_index = (self.offset % self.bases[2]) / self.bases[1] + self.offsets[2];
+            let y2_index = (self.offset % self.bases[SsnIterator::OFFSET_Y2])
+                / self.bases[SsnIterator::OFFSET_DECADE]
+                + self.offsets[SsnIterator::OFFSET_Y2];
             let y2 = self.all[y2_index];
             // month
-            let month_index = (self.offset % self.bases[3]) / self.bases[2] + self.offsets[3];
+            let month_index = (self.offset % self.bases[SsnIterator::OFFSET_MOTH])
+                / self.bases[SsnIterator::OFFSET_Y2]
+                + self.offsets[SsnIterator::OFFSET_MOTH];
             let month = self.all[month_index];
             // day
-            let day_index = (self.offset % self.bases[4]) / self.bases[3] + self.offsets[4];
+            let day_index = (self.offset % self.bases[SsnIterator::OFFSET_DAY])
+                / self.bases[SsnIterator::OFFSET_MOTH]
+                + self.offsets[SsnIterator::OFFSET_DAY];
             let day = self.all[day_index];
             let year = century + decade * 10 + y2;
+            let separator = if self.separators.len() == 1 {
+                self.separators.first().unwrap()
+            } else {
+                self.separators
+                    .get(self.offset % self.separators.len())
+                    .unwrap()
+            };
             let days_in_this_month = days_in_month(month, year);
             if day >= days_in_this_month {
                 println!("day was too large");
                 continue;
             }
             // identifier
-            let i1_index = (self.offset % self.bases[5]) / self.bases[4] + self.offsets[5];
+            let i1_index = (self.offset % self.bases[SsnIterator::OFFSET_I1])
+                / self.bases[SsnIterator::OFFSET_DAY]
+                + self.offsets[SsnIterator::OFFSET_I1];
             let i1 = self.all[i1_index];
-            let i2_index = (self.offset % self.bases[6]) / self.bases[5] + self.offsets[6];
+            let i2_index = (self.offset % self.bases[SsnIterator::OFFSET_I2])
+                / self.bases[SsnIterator::OFFSET_I1]
+                + self.offsets[SsnIterator::OFFSET_I2];
             let i2 = self.all[i2_index];
-            let i3_index = (self.offset % self.bases[7]) / self.bases[6] + self.offsets[7];
+            let i3_index = (self.offset % self.bases[SsnIterator::OFFSET_I3])
+                / self.bases[SsnIterator::OFFSET_I2]
+                + self.offsets[SsnIterator::OFFSET_I3];
             let i3 = self.all[i3_index];
             let identifier = i1 * 100 + i2 * 10 + i3;
             if identifier < 2 {
@@ -411,7 +466,7 @@ impl Iterator for SsnIterator {
                 day,
                 month,
                 year % 100,
-                to_separator(year).unwrap(),
+                separator,
                 identifier,
                 checksum
             ));
@@ -487,7 +542,7 @@ impl Ssn {
         let year = rng.gen_range(1890, 2016);
         let month = rng.gen_range(1, 13);
         let day = rng.gen_range(1, days_in_month(month, year) + 1);
-        let separator = to_separator(year).unwrap();
+        let separator = to_separator(year, &mut rng).unwrap();
         let identifier = rng.gen_range(2, 900);
         let nums = day * 10_000_000 + month * 100_000 + (year % 100) * 1_000 + identifier;
         let checksum = CHECKSUM_TABLE[nums % 31];
@@ -520,18 +575,24 @@ impl Ssn {
 fn from_separator<'a>(separator: &char) -> Result<usize, ParseError<'a>> {
     match separator {
         '+' => Ok(1800),
-        '-' => Ok(1900),
-        'A' => Ok(2000),
+        '-' | 'Y' | 'X' | 'W' | 'V' | 'U' => Ok(1900),
+        'A' | 'B' | 'C' | 'D' | 'E' | 'F' => Ok(2000),
         _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
     }
 }
 
 /** Get separator character for year. */
-fn to_separator(year: usize) -> Result<char, GenerateError> {
+fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError> {
     match year / 100 {
         18 => Ok('+'),
-        19 => Ok('-'),
-        20 => Ok('A'),
+        19 => rng
+            .choose(&['-', 'Y', 'X', 'W', 'V', 'U'])
+            .ok_or(GenerateError)
+            .copied(),
+        20 => rng
+            .choose(&['A', 'B', 'C', 'D', 'E', 'F'])
+            .ok_or(GenerateError)
+            .copied(),
         _ => Err(GenerateError),
     }
 }
@@ -592,8 +653,8 @@ impl SsnPattern {
         let sep: Option<char> = match p.chars().nth(6).unwrap() {
             '?' => None,
             sep @ '+' => Some(sep),
-            sep @ '-' => Some(sep),
-            sep @ 'A' => Some(sep),
+            sep @ '-' | sep @ 'Y' | sep @ 'X' | sep @ 'W' | sep @ 'V' | sep @ 'U' => Some(sep),
+            sep @ 'A' | sep @ 'B' | sep @ 'C' | sep @ 'D' | sep @ 'E' | sep @ 'F' => Some(sep),
             _ => {
                 return Err(ParseError::Syntax("Invalid separator character", 6, 7));
             }
