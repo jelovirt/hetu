@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 rand = "0.3.14"
-ansi_term = "0.11.0"
+ansi_term = "0.12.1"
 
 [dev-dependencies]
 regex = "1.5"
