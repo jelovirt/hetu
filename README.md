@@ -2,6 +2,8 @@
 
 Simple crate for validating and generating [Finnish Personal Identity Code (HETU)][1].
 
+Supports the [1.1.2023 format](https://dvv.fi/hetu-uudistus). 
+
 Works with rust 1.8 stable.
 
 ## Usage
