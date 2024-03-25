@@ -121,9 +121,15 @@ pub fn generate_by_pattern_with_any_checksum(
         Some(s) => s,
         None => *rng.choose(&SEPARATORS).unwrap(),
     };
-    let decade = pattern.y1.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
+    let decade = pattern
+        .y1
+        .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
+        as usize;
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
+    if year < 1850 {
+        return Err(GenerateError);
+    }
 
     let month: usize = match (pattern.m1, pattern.m2) {
         (Some(ref m1), Some(ref m2)) => {
@@ -229,6 +235,9 @@ pub fn generate_by_pattern_with_fixed_checksum(
     for century in &centuries {
         for separator in &separators {
             for decade in &decades {
+                if *century == 1800 && *decade < 5 {
+                    continue;
+                }
                 for y2 in &y2s {
                     let year = century + decade * 10 + y2;
                     for month in &months {
