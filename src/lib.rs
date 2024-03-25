@@ -154,7 +154,7 @@ pub fn generate_by_pattern_with_any_checksum(
             d
         }
         (Some(ref d1), None) => {
-            if *d1 < 1 || *d1 as usize > days_in_month / 10 {
+            if *d1 as usize > days_in_month / 10 {
                 return Err(GenerateError);
             };
             let d2 = rng.gen_range(if *d1 as usize == 0 { 1 } else { 0 }, 10);
