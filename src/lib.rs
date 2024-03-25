@@ -506,6 +506,9 @@ impl Ssn {
         }
 
         let year = date % 100 + from_separator(&separator)?;
+        if year < 1850 {
+            return Err(ParseError::Day("Invalid year before 1850", 4, 6));
+        }
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10_000;
