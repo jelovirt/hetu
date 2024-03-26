@@ -34,10 +34,11 @@ fn separator_range(sep: &Option<char>) -> Vec<char> {
     }
 }
 
-fn decade_range(y1: &Option<u8>) -> Vec<usize> {
-    match y1 {
-        Some(v) => vec![*v as usize],
-        None => (0usize..=9usize).collect(),
+fn decade_range(y1: &Option<u8>, sep: &Option<char>) -> Vec<usize> {
+    match (y1, sep) {
+        (Some(v), _) => vec![*v as usize],
+        (None, Some('+')) => (5usize..=9usize).collect(),
+        (None, _) => (0usize..=9usize).collect(),
     }
 }
 
@@ -121,15 +122,13 @@ pub fn generate_by_pattern_with_any_checksum(
         Some(s) => s,
         None => *rng.choose(&SEPARATORS).unwrap(),
     };
+    // Unless the pattern explicitly sets the year to be before 1850, don't generate years before 1850.
     let decade = pattern
         .y1
         .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
         as usize;
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
-    if year < 1850 {
-        return Err(GenerateError);
-    }
 
     let month: usize = match (pattern.m1, pattern.m2) {
         (Some(ref m1), Some(ref m2)) => {
@@ -208,7 +207,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
     rng.shuffle(&mut centuries);
     let mut separators = separator_range(&pattern.sep);
     rng.shuffle(&mut separators);
-    let mut decades = decade_range(&pattern.y1);
+    let mut decades = decade_range(&pattern.y1, &pattern.sep);
     rng.shuffle(&mut decades);
     let mut y2s = y2_range(&mut rng, &pattern.y2);
     rng.shuffle(&mut y2s);
@@ -235,9 +234,6 @@ pub fn generate_by_pattern_with_fixed_checksum(
     for century in &centuries {
         for separator in &separators {
             for decade in &decades {
-                if *century == 1800 && *decade < 5 {
-                    continue;
-                }
                 for y2 in &y2s {
                     let year = century + decade * 10 + y2;
                     for month in &months {
@@ -308,7 +304,7 @@ impl SsnIterator {
         rng.shuffle(&mut centuries);
         let mut separators = separator_range(&pattern.sep);
         rng.shuffle(&mut separators);
-        let mut decades = decade_range(&pattern.y1);
+        let mut decades = decade_range(&pattern.y1, &pattern.sep);
         rng.shuffle(&mut decades);
         let mut y2s = y2_range(&mut rng, &pattern.y2);
         rng.shuffle(&mut y2s);
