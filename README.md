@@ -2,7 +2,7 @@
 
 Simple crate for validating and generating [Finnish Personal Identity Code (HETU)][1].
 
-Supports the [1.1.2023 format](https://dvv.fi/hetu-uudistus). 
+Supports the [1.1.2023 format](https://dvv.fi/hetu-uudistus).
 
 Works with rust 1.8 stable.
 
@@ -22,11 +22,11 @@ extern crate hetu;
 use hetu::Ssn;
 
 pub fn main() {
-  if Ssn::parse("121212-121D").is_ok() {
-    println!("Valid HETU")
-  } else {
-    println!("Invalid")
-  }
+    if Ssn::parse("121212-121D").is_ok() {
+        println!("Valid HETU")
+    } else {
+        println!("Invalid")
+    }
 }
 ```
 
@@ -37,7 +37,7 @@ extern crate hetu;
 use hetu::Ssn;
 
 pub fn main() {
-  println!("{}", Ssn::generate());
+    println!("{}", Ssn::generate());
 }
 ```
 
@@ -49,8 +49,8 @@ use hetu::Ssn;
 use hetu::SsnPattern;
 
 pub fn main() {
-  let pattern = SsnPattern::parse("111111-111?").unwrap();
-  println!("{}", Ssn::generate_by_pattern(pattern).unwrap());
+    let pattern = SsnPattern::parse("111111-111?").unwrap();
+    println!("{}", Ssn::generate_by_pattern(pattern).unwrap());
 }
 ```
 

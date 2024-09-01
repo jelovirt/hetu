@@ -49,7 +49,7 @@ fn generate(pattern: &str) {
 }
 
 fn generate_and_print(pattern: &SsnPattern) {
-    match Ssn::generate_by_pattern(&pattern) {
+    match Ssn::generate_by_pattern(pattern) {
         Ok(ref ssn) => println!("{}", ssn),
         Err(ref err) => {
             eprintln!("Error: {}", err);
@@ -59,7 +59,7 @@ fn generate_and_print(pattern: &SsnPattern) {
 }
 
 fn parse(ssn: &str) {
-    match Ssn::parse(&ssn) {
+    match Ssn::parse(ssn) {
         Ok(_) => (),
         Err(ref err) => {
             eprintln!(

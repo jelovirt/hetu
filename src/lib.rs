@@ -54,7 +54,7 @@ fn y2_range(rng: &mut ThreadRng, y2: &Option<u8>) -> Vec<usize> {
 }
 
 fn m_range(m1: &Option<u8>, m2: &Option<u8>) -> Vec<usize> {
-    let range = match (m1, m2) {
+    match (m1, m2) {
         (Some(ref m1), Some(ref m2)) => {
             let m = (m1 * 10 + m2) as usize;
             if !(1..=12).contains(&m) {
@@ -69,8 +69,7 @@ fn m_range(m1: &Option<u8>, m2: &Option<u8>) -> Vec<usize> {
             .map(|m1| (m1 * 10 + m2) as usize)
             .collect(),
         (None, None) => (1usize..13usize).collect(),
-    };
-    range
+    }
 }
 
 fn d_range(d1: &Option<u8>, d2: &Option<u8>) -> Vec<usize> {
@@ -90,12 +89,9 @@ fn d_range(d1: &Option<u8>, d2: &Option<u8>) -> Vec<usize> {
                 .map(|d2| *d1 as usize * 10 + d2)
                 .collect()
         }
-        (None, Some(ref d2)) => {
-            ((if *d2 as usize == 0 { 1 } else { 0 })
-                ..(/*if days_in_month % 10 == 3 { 4 } else { 3 }*/4))
-                .map(|d1| d1 * 10 + *d2 as usize)
-                .collect()
-        }
+        (None, Some(ref d2)) => ((if *d2 as usize == 0 { 1 } else { 0 })..4)
+            .map(|d1| d1 * 10 + *d2 as usize)
+            .collect(),
         (None, None) =>
         // (1..(days_in_month + 1)).collect()
         {
@@ -371,7 +367,7 @@ impl SsnIterator {
                     + i1s.len()
                     + i2s.len(),
             ],
-            separators: separators,
+            separators,
             check: pattern.check,
             offset: usize::MAX,
         };
@@ -401,7 +397,7 @@ impl Iterator for SsnIterator {
             }
 
             // year
-            let century_index = (self.offset % self.bases[SsnIterator::OFFSET_CENTURY]) / 1
+            let century_index = (self.offset % self.bases[SsnIterator::OFFSET_CENTURY])
                 + self.offsets[SsnIterator::OFFSET_CENTURY];
             let century = self.all[century_index];
             let decade_index = (self.offset % self.bases[SsnIterator::OFFSET_DECADE])
@@ -520,7 +516,7 @@ impl Ssn {
             return Err(ParseError::Identifier("Invalid identifier number", 10, 11));
         }
 
-        let checksum = checksum(&ssn);
+        let checksum = checksum(ssn);
         if checksum != chars[10] {
             return Err(ParseError::Checksum("Incorrect checksum", 10, 11, checksum));
         }
@@ -652,12 +648,12 @@ impl SsnPattern {
         if p.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, p.len()));
         }
-        let d1: Option<u8> = SsnPattern::parse_char(&p, 0)?;
-        let d2: Option<u8> = SsnPattern::parse_char(&p, 1)?;
-        let m1: Option<u8> = SsnPattern::parse_char(&p, 2)?;
-        let m2: Option<u8> = SsnPattern::parse_char(&p, 3)?;
-        let y1: Option<u8> = SsnPattern::parse_char(&p, 4)?;
-        let y2: Option<u8> = SsnPattern::parse_char(&p, 5)?;
+        let d1: Option<u8> = SsnPattern::parse_char(p, 0)?;
+        let d2: Option<u8> = SsnPattern::parse_char(p, 1)?;
+        let m1: Option<u8> = SsnPattern::parse_char(p, 2)?;
+        let m2: Option<u8> = SsnPattern::parse_char(p, 3)?;
+        let y1: Option<u8> = SsnPattern::parse_char(p, 4)?;
+        let y2: Option<u8> = SsnPattern::parse_char(p, 5)?;
         let sep: Option<char> = match p.chars().nth(6).unwrap() {
             '?' => None,
             sep @ '+' => Some(sep),
@@ -667,9 +663,9 @@ impl SsnPattern {
                 return Err(ParseError::Syntax("Invalid separator character", 6, 7));
             }
         };
-        let i1: Option<u8> = SsnPattern::parse_char(&p, 7)?;
-        let i2: Option<u8> = SsnPattern::parse_char(&p, 8)?;
-        let i3: Option<u8> = SsnPattern::parse_char(&p, 9)?;
+        let i1: Option<u8> = SsnPattern::parse_char(p, 7)?;
+        let i2: Option<u8> = SsnPattern::parse_char(p, 8)?;
+        let i3: Option<u8> = SsnPattern::parse_char(p, 9)?;
         let check: Option<char> = match p.chars().nth(10).unwrap() {
             '?' => None,
             sep if CHECKSUM_TABLE.contains(&sep) => Some(sep),
@@ -712,11 +708,11 @@ pub enum ParseError<'a> {
 impl<'a> fmt::Display for ParseError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ParseError::Syntax(ref desc, _, _) => write!(f, "Invalid syntax: {}", *desc),
-            ParseError::Day(ref desc, _, _) => write!(f, "Invalid day: {}", *desc),
-            ParseError::Month(ref desc, _, _) => write!(f, "Invalid month: {}", *desc),
-            ParseError::Year(ref desc, _, _) => write!(f, "Invalid year: {}", *desc),
-            ParseError::Identifier(ref desc, _, _) => write!(f, "Invalid identifier: {}", *desc),
+            ParseError::Syntax(desc, _, _) => write!(f, "Invalid syntax: {}", desc),
+            ParseError::Day(desc, _, _) => write!(f, "Invalid day: {}", desc),
+            ParseError::Month(desc, _, _) => write!(f, "Invalid month: {}", desc),
+            ParseError::Year(desc, _, _) => write!(f, "Invalid year: {}", desc),
+            ParseError::Identifier(desc, _, _) => write!(f, "Invalid identifier: {}", desc),
             ParseError::Checksum(_, _, _, ref checksum) => {
                 write!(f, "Invalid checksum: expected {}", checksum)
             }
@@ -744,13 +740,13 @@ impl<'a> error::Error for ParseError<'a> {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GenerateError;
 
-impl<'a> fmt::Display for GenerateError {
+impl fmt::Display for GenerateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Unable to generate matching hetu")
     }
 }
 
-impl<'a> error::Error for GenerateError {
+impl error::Error for GenerateError {
     fn description(&self) -> &str {
         "Unable to generate matching hetu"
     }
@@ -820,7 +816,7 @@ static CHECKSUM_TABLE: [char; 31] = [
 fn checksum(ssn: &str) -> char {
     let mut hello: String = ssn[..6].to_string();
     hello.push_str(&ssn[7..10]);
-    let nums: usize = (&hello).parse().unwrap();
+    let nums: usize = hello.parse().unwrap();
     CHECKSUM_TABLE[nums % 31]
 }
 // fn checksum_num(day: usize, month: usize, year: usize, identifier: usize) -> char {
