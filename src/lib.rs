@@ -116,7 +116,12 @@ pub fn generate_by_pattern_with_any_checksum(
     // let separator: char = to_separator(century, &mut rng)?;
     let separator: char = match pattern.sep {
         Some(s) => s,
-        None => *rng.choose(&SEPARATORS).unwrap(),
+        None => match century {
+            1800 => '+',
+            1900 => *rng.choose(&['-', 'Y', 'X', 'W', 'V', 'U']).unwrap(),
+            2000 => *rng.choose(&['A', 'B', 'C', 'D', 'E', 'F']).unwrap(),
+            _ => return Err(GenerateError),
+        },
     };
     // Unless the pattern explicitly sets the year to be before 1850, don't generate years before 1850.
     let decade = pattern
