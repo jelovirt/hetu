@@ -22,15 +22,18 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-      - uses: actions-rs/cargo@v1
+      - name: Check format
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --check
-      - uses: actions-rs/cargo@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
         with:
           command: check
           args: --all-targets --color never
-      - uses: actions-rs/cargo@v1
+      - name: Check Clippy
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --no-deps
