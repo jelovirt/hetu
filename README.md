@@ -1,5 +1,9 @@
 # HETU validator and generator in Rust
 
+[![Crates.io](https://img.shields.io/crates/v/hetu.svg)](https://crates.io/crates/hetu)
+[![Tests](https://github.com/jelovirt/hetu/actions/workflows/test.yml/badge.svg)](https://github.com/jelovirt/hetu/actions/workflows/test.yml)
+
+
 Simple crate for validating and generating [Finnish Personal Identity Code (HETU)][1].
 
 Supports the [1.1.2023 format](https://dvv.fi/hetu-uudistus).
