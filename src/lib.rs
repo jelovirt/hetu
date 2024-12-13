@@ -128,6 +128,9 @@ pub fn generate_by_pattern_with_any_checksum(
         .y1
         .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
         as usize;
+    if century == 1800 && decade < 5 {
+        return Err(GenerateError);
+    }
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
 
@@ -237,6 +240,9 @@ pub fn generate_by_pattern_with_fixed_checksum(
             for decade in &decades {
                 for y2 in &y2s {
                     let year = century + decade * 10 + y2;
+                    if year < 1850 {
+                        continue;
+                    }
                     for month in &months {
                         let days_in_this_month = days_in_month(*month, year);
                         for day in days.iter().filter(|d| d <= &&days_in_this_month) {
@@ -1147,5 +1153,7 @@ mod tests {
         day_too_large_on_non_leap_year_fixed: "290299-???A",
         day_too_large_on_leap_year_wildcard: "300204-????",
         day_too_large_on_leap_year_fixed: "300204-???A",
+        year_too_small_wildcard: "????4?+????",
+        year_too_small_fixed: "????4?+???A",
     }
 }
