@@ -93,4 +93,4 @@ $ hetu -p "??????-???D"
 241151-028D
 ```
 
-[1]: https://en.wikipedia.org/wiki/National_identification_number#Finland
+[1]: https://dvv.fi/en/personal-identity-code
