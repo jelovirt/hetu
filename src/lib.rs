@@ -128,6 +128,9 @@ pub fn generate_by_pattern_with_any_checksum(
         .y1
         .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
         as usize;
+    if century == 1800 && decade < 5 {
+        return Err(GenerateError);
+    }
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
 
@@ -237,6 +240,9 @@ pub fn generate_by_pattern_with_fixed_checksum(
             for decade in &decades {
                 for y2 in &y2s {
                     let year = century + decade * 10 + y2;
+                    if year < 1850 {
+                        continue;
+                    }
                     for month in &months {
                         let days_in_this_month = days_in_month(*month, year);
                         for day in days.iter().filter(|d| d <= &&days_in_this_month) {
@@ -586,7 +592,7 @@ fn from_separator<'a>(separator: &char) -> Result<usize, ParseError<'a>> {
         '+' => Ok(1800),
         '-' | 'Y' | 'X' | 'W' | 'V' | 'U' => Ok(1900),
         'A' | 'B' | 'C' | 'D' | 'E' | 'F' => Ok(2000),
-        _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
+        _ => Err(ParseError::Syntax("Invalid separator", 6, 7)),
     }
 }
 
@@ -710,7 +716,7 @@ pub enum ParseError<'a> {
     Checksum(&'a str, usize, usize, char),
 }
 
-impl<'a> fmt::Display for ParseError<'a> {
+impl fmt::Display for ParseError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ParseError::Syntax(desc, _, _) => write!(f, "Invalid syntax: {}", desc),
@@ -725,7 +731,7 @@ impl<'a> fmt::Display for ParseError<'a> {
     }
 }
 
-impl<'a> error::Error for ParseError<'a> {
+impl error::Error for ParseError<'_> {
     fn description(&self) -> &str {
         match *self {
             ParseError::Syntax(_, _, _) => "Invalid syntax",
@@ -766,7 +772,7 @@ pub trait ErrorIndexRange {
     fn end(&self) -> usize;
 }
 
-impl<'a> ErrorIndexRange for ParseError<'a> {
+impl ErrorIndexRange for ParseError<'_> {
     fn start(&self) -> usize {
         match *self {
             ParseError::Syntax(_, start, _) => start,
@@ -1147,5 +1153,7 @@ mod tests {
         day_too_large_on_non_leap_year_fixed: "290299-???A",
         day_too_large_on_leap_year_wildcard: "300204-????",
         day_too_large_on_leap_year_fixed: "300204-???A",
+        year_too_small_wildcard: "????4?+????",
+        year_too_small_fixed: "????4?+???A",
     }
 }
