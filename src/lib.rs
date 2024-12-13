@@ -592,7 +592,7 @@ fn from_separator<'a>(separator: &char) -> Result<usize, ParseError<'a>> {
         '+' => Ok(1800),
         '-' | 'Y' | 'X' | 'W' | 'V' | 'U' => Ok(1900),
         'A' | 'B' | 'C' | 'D' | 'E' | 'F' => Ok(2000),
-        _ => return Err(ParseError::Syntax("Invalid separator", 6, 7)),
+        _ => Err(ParseError::Syntax("Invalid separator", 6, 7)),
     }
 }
 
@@ -716,7 +716,7 @@ pub enum ParseError<'a> {
     Checksum(&'a str, usize, usize, char),
 }
 
-impl<'a> fmt::Display for ParseError<'a> {
+impl fmt::Display for ParseError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             ParseError::Syntax(desc, _, _) => write!(f, "Invalid syntax: {}", desc),
@@ -731,7 +731,7 @@ impl<'a> fmt::Display for ParseError<'a> {
     }
 }
 
-impl<'a> error::Error for ParseError<'a> {
+impl error::Error for ParseError<'_> {
     fn description(&self) -> &str {
         match *self {
             ParseError::Syntax(_, _, _) => "Invalid syntax",
@@ -772,7 +772,7 @@ pub trait ErrorIndexRange {
     fn end(&self) -> usize;
 }
 
-impl<'a> ErrorIndexRange for ParseError<'a> {
+impl ErrorIndexRange for ParseError<'_> {
     fn start(&self) -> usize {
         match *self {
             ParseError::Syntax(_, start, _) => start,
