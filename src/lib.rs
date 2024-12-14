@@ -139,12 +139,14 @@ pub fn generate_by_pattern_with_any_checksum(
             };
             m
         }
+        (Some(0), None) => rng.gen_range(1, 10),
         (Some(ref m1), None) => {
-            let m2 = rng.gen_range(if *m1 == 0 { 1 } else { 0 }, if *m1 == 0 { 10 } else { 3 });
+            let m2 = rng.gen_range(0, 3);
             (m1 * 10 + m2) as usize
         }
+        (None, Some(0)) => 10,
         (None, Some(ref m2)) => {
-            let m1 = rng.gen_range(if *m2 == 0 { 1 } else { 0 }, 2);
+            let m1 = rng.gen_range(0, 2);
             (m1 * 10 + m2) as usize
         }
         (None, None) => match (pattern.d1, pattern.d2) {
@@ -162,6 +164,8 @@ pub fn generate_by_pattern_with_any_checksum(
         (Some(ref d1), Some(ref d2)) => {
             let d = (d1 * 10 + d2) as usize;
             if d < 1 || d > days_in_month {
+                // XXX: This is a case where the pattern is e.g. 2902??????? which means the year
+                // must be a leap year. Currently, this corner case is not supported.
                 return Err(GenerateError);
             };
             d
@@ -712,10 +716,16 @@ impl SsnPattern {
             (Some(d1), Some(d2), _, _, _, _) if (d1 * 10 + d2) > 31 => {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
+            (Some(d1), None, _, _, _, _) if d1 > 3 => {
+                return Err(ParseError::Day("Invalid day too large", 0, 1));
+            }
             (_, _, Some(0), Some(0), _, _) => {
                 return Err(ParseError::Month("Invalid month too small", 0, 1));
             }
             (_, _, Some(m1), Some(m2), _, _) if m1 * 10 + m2 > 12 => {
+                return Err(ParseError::Month("Invalid month too large", 2, 3));
+            }
+            (_, _, Some(m1), None, _, _) if m1 > 1 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
             }
             (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
