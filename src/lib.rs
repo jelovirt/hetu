@@ -128,9 +128,6 @@ pub fn generate_by_pattern_with_any_checksum(
         .y1
         .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
         as usize;
-    if century == 1800 && decade < 5 {
-        return Err(GenerateError);
-    }
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
 
@@ -684,6 +681,14 @@ impl SsnPattern {
                 return Err(ParseError::Syntax("Invalid checksum character", 10, 11));
             }
         };
+
+        match (y1, sep) {
+            (Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
+                return Err(ParseError::Day("Invalid year before 1850", 4, 7));
+            }
+            _ => {}
+        }
+
         Ok(SsnPattern {
             d1,
             d2,
@@ -1069,12 +1074,19 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_pattern_parse_invalid_checksum() {
-        assert!(
-            SsnPattern::parse("??????-???O").is_err(),
-            "invalid checksum"
-        );
+    macro_rules! pattern_parse_failure {
+        ($($name:ident: $value:expr,)*) => {$(
+            #[test]
+            fn $name() {
+                let pattern = &SsnPattern::parse($value);
+                assert!(pattern.is_err());
+            }
+        )*}
+    }
+
+    pattern_parse_failure! {
+        pattern_parse_invalid_checksum: "??????-???O",
+        pattern_parse_invalid_year: "????4?+????",
     }
 
     #[test]
@@ -1153,7 +1165,5 @@ mod tests {
         day_too_large_on_non_leap_year_fixed: "290299-???A",
         day_too_large_on_leap_year_wildcard: "300204-????",
         day_too_large_on_leap_year_fixed: "300204-???A",
-        year_too_small_wildcard: "????4?+????",
-        year_too_small_fixed: "????4?+???A",
     }
 }
