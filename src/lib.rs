@@ -609,6 +609,7 @@ fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError>
     }
 }
 
+/// Pattern that defines generated Ssn.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
@@ -652,6 +653,21 @@ impl SsnPattern {
         }
     }
 
+    /// Parse pattern from a string.
+    ///
+    /// A character in the pattern string is either the desired character or a wildcard denoted by
+    /// a '?' character.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hetu::SsnPattern;
+    ///
+    /// // separator character should be '-' to denote birthday between 1900 and 1999
+    /// SsnPattern::parse("??????-????");
+    /// // all other characters are fixed except the checksum
+    /// SsnPattern::parse("141286-245?");
+    /// ```
     pub fn parse(p: &str) -> Result<SsnPattern, ParseError> {
         if p.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, p.len()));
