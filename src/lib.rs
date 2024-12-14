@@ -706,13 +706,13 @@ impl SsnPattern {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
             (_, _, Some(0), Some(0), _, _) => {
-                return Err(ParseError::Day("Invalid month too small", 0, 1));
+                return Err(ParseError::Month("Invalid month too small", 0, 1));
             }
-            // (_, _, Some(m1), Some(m2), _, _, ) if m1 * 10 + m2 > 12 => {
-            //     return Err(ParseError::Day("Invalid month too large", 2, 3));
-            // }
+            (_, _, Some(m1), Some(m2), _, _) if m1 * 10 + m2 > 12 => {
+                return Err(ParseError::Month("Invalid month too large", 2, 3));
+            }
             (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
-                return Err(ParseError::Day("Invalid year before 1850", 4, 7));
+                return Err(ParseError::Year("Invalid year before 1850", 4, 7));
             }
             _ => {}
         }
@@ -1091,7 +1091,7 @@ mod tests {
 
     #[test]
     fn test_pattern_parse() {
-        assert!(SsnPattern::parse("123456-7890").is_ok(), "parse valid SSN");
+        assert!(SsnPattern::parse("030228-643H").is_ok(), "parse valid SSN");
     }
 
     #[test]
