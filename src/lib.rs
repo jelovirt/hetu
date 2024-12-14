@@ -699,13 +699,13 @@ impl SsnPattern {
         };
 
         match (d1, d2, m1, m2, y1, sep) {
-            (Some(0), Some(0), _, _, _, _, ) => {
+            (Some(0), Some(0), _, _, _, _) => {
                 return Err(ParseError::Day("Invalid day too small", 0, 1));
             }
-            // (Some(d1), Some(d2), _, _, _, _, ) if d1 * 10 + d2 > 32 => {
-            //     return Err(ParseError::Day("Invalid day too large", 0, 1));
-            // }
-            (_, _, Some(0), Some(0), _, _, ) => {
+            (Some(d1), Some(d2), _, _, _, _) if (d1 * 10 + d2) > 31 => {
+                return Err(ParseError::Day("Invalid day too large", 0, 1));
+            }
+            (_, _, Some(0), Some(0), _, _) => {
                 return Err(ParseError::Day("Invalid month too small", 0, 1));
             }
             // (_, _, Some(m1), Some(m2), _, _, ) if m1 * 10 + m2 > 12 => {
@@ -1118,7 +1118,7 @@ mod tests {
         pattern_parse_month_too_small: "??00??????A",
         // pattern_parse_month_too_large: "??13??????A",
         pattern_parse_day_too_small: "00????????A",
-        // pattern_parse_day_too_large: "32????????A",
+        pattern_parse_day_too_large: "32????????A",
     }
 
     #[test]
