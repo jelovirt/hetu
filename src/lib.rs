@@ -133,15 +133,11 @@ pub fn generate_by_pattern_with_any_checksum(
 
     // Month generation needs to take days into consideration to handle leap years
     let month: usize = match (pattern.m1, pattern.m2, pattern.d1, pattern.d2) {
-        (Some(ref m1), Some(ref m2), _, _) => {
-            let m = (m1 * 10 + m2) as usize;
-            if !(1..=12).contains(&m) {
-                return Err(GenerateError);
-            };
-            m
-        }
+        (Some(ref m1), Some(ref m2), _, _) => (m1 * 10 + m2) as usize,
 
+        // FIXME: handle leap year and months with 30 days
         (Some(0), None, _, _) => rng.gen_range(1, 10),
+        // FIXME: handle month 30 days
         (Some(1), None, _, _) => rng.gen_range(10, 13),
 
         (None, Some(0), _, _) => 10,
