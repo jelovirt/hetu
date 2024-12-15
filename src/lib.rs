@@ -131,32 +131,34 @@ pub fn generate_by_pattern_with_any_checksum(
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
 
-    let month: usize = match (pattern.m1, pattern.m2) {
-        (Some(ref m1), Some(ref m2)) => {
+    // Month generation needs to take days into consideration to handle leap years
+    let month: usize = match (pattern.m1, pattern.m2, pattern.d1, pattern.d2) {
+        (Some(ref m1), Some(ref m2), _, _) => {
             let m = (m1 * 10 + m2) as usize;
             if !(1..=12).contains(&m) {
                 return Err(GenerateError);
             };
             m
         }
-        (Some(0), None) => rng.gen_range(1, 10),
-        (Some(ref m1), None) => {
-            let m2 = rng.gen_range(0, 3);
-            (m1 * 10 + m2) as usize
-        }
-        (None, Some(0)) => 10,
-        (None, Some(ref m2)) => {
+
+        (Some(0), None, _, _) => rng.gen_range(1, 10),
+        (Some(1), None, _, _) => rng.gen_range(10, 13),
+
+        (None, Some(0), _, _) => 10,
+        (None, Some(ref m2), _, _) => {
             let m1 = rng.gen_range(0, 2);
             (m1 * 10 + m2) as usize
         }
-        (None, None) => match (pattern.d1, pattern.d2) {
-            (Some(3), Some(1)) => *rng.choose(&[1, 3, 5, 7, 8, 10, 12]).unwrap(),
-            (Some(3), Some(0)) => *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap(),
-            (Some(2), Some(9)) if !is_leap_year(year) => {
-                *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap()
-            }
-            _ => rng.gen_range(1, 13),
-        },
+
+        (None, None, Some(3), Some(1)) => *rng.choose(&[1, 3, 5, 7, 8, 10, 12]).unwrap(),
+        (None, None, Some(3), Some(0)) => {
+            *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap()
+        }
+        (None, None, Some(2), Some(9)) if !is_leap_year(year) => {
+            *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap()
+        }
+
+        _ => rng.gen_range(1, 13),
     };
 
     let days_in_month = days_in_month(month, year);
