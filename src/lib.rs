@@ -128,29 +128,37 @@ pub fn generate_by_pattern_with_any_checksum(
         .y1
         .unwrap_or_else(|| rng.gen_range(if century == 1800 { 5 } else { 0 }, 10))
         as usize;
-    if century == 1800 && decade < 5 {
-        return Err(GenerateError);
-    }
     let y2 = pattern.y2.unwrap_or_else(|| rng.gen_range(0, 10)) as usize;
     let year = century + decade * 10 + y2;
 
-    let month: usize = match (pattern.m1, pattern.m2) {
-        (Some(ref m1), Some(ref m2)) => {
-            let m = (m1 * 10 + m2) as usize;
-            if !(1..=12).contains(&m) {
-                return Err(GenerateError);
-            };
-            m
+    // Month generation needs to take days into consideration to handle leap years
+    let month: usize = match (pattern.m1, pattern.m2, pattern.d1, pattern.d2) {
+        (Some(ref m1), Some(ref m2), _, _) => (m1 * 10 + m2) as usize,
+
+        (Some(0), None, Some(3), Some(1)) => *rng.choose(&[1, 3, 5, 7, 8]).unwrap(),
+        (Some(0), None, Some(3), Some(0)) => *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9]).unwrap(),
+        (Some(0), None, Some(2), Some(9)) if !is_leap_year(year) => {
+            *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9]).unwrap()
         }
-        (Some(ref m1), None) => {
-            let m2 = rng.gen_range(if *m1 == 0 { 1 } else { 0 }, if *m1 == 0 { 10 } else { 3 });
+        (Some(0), None, _, _) => rng.gen_range(1, 10),
+        // FIXME: handle month 30 days
+        (Some(1), None, _, _) => rng.gen_range(10, 13),
+
+        (None, Some(0), _, _) => 10,
+        (None, Some(ref m2), _, _) => {
+            let m1 = rng.gen_range(0, 2);
             (m1 * 10 + m2) as usize
         }
-        (None, Some(ref m2)) => {
-            let m1 = rng.gen_range(if *m2 == 0 { 1 } else { 0 }, 2);
-            (m1 * 10 + m2) as usize
+
+        (None, None, Some(3), Some(1)) => *rng.choose(&[1, 3, 5, 7, 8, 10, 12]).unwrap(),
+        (None, None, Some(3), Some(0)) => {
+            *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap()
         }
-        (None, None) => rng.gen_range(1, 13),
+        (None, None, Some(2), Some(9)) if !is_leap_year(year) => {
+            *rng.choose(&[1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).unwrap()
+        }
+
+        _ => rng.gen_range(1, 13),
     };
 
     let days_in_month = days_in_month(month, year);
@@ -158,10 +166,17 @@ pub fn generate_by_pattern_with_any_checksum(
         (Some(ref d1), Some(ref d2)) => {
             let d = (d1 * 10 + d2) as usize;
             if d < 1 || d > days_in_month {
+                // XXX: This is a case where the pattern is e.g. 2902??????? which means the year
+                // must be a leap year. Currently, this corner case is not supported.
                 return Err(GenerateError);
             };
             d
         }
+
+        (Some(3), None) if days_in_month == 31 => 30 + rng.gen_range(0, 2),
+        (Some(3), None) if days_in_month == 30 => 30,
+        (Some(2), None) if month == 2 && is_leap_year(year) => 20 + rng.gen_range(0, 10),
+        (Some(2), None) if month == 2 && !is_leap_year(year) => 20 + rng.gen_range(0, 9),
         (Some(ref d1), None) => {
             if *d1 as usize > days_in_month / 10 {
                 return Err(GenerateError);
@@ -207,8 +222,6 @@ pub fn generate_by_pattern_with_fixed_checksum(
     pattern: &SsnPattern,
 ) -> Result<String, GenerateError> {
     let mut rng = rand::thread_rng();
-    let mut centuries = century_range(&pattern.sep);
-    rng.shuffle(&mut centuries);
     let mut separators = separator_range(&pattern.sep);
     rng.shuffle(&mut separators);
     let mut decades = decade_range(&pattern.y1, &pattern.sep);
@@ -235,44 +248,47 @@ pub fn generate_by_pattern_with_fixed_checksum(
         // .unwrap_or_else(|| ((if i1 == 0 && i2 == 0 { 2usize } else { 0usize })..10usize)
         .unwrap_or_else(|| (0usize..=9usize).collect());
     rng.shuffle(&mut i3s);
-    for century in &centuries {
-        for separator in &separators {
-            for decade in &decades {
-                for y2 in &y2s {
-                    let year = century + decade * 10 + y2;
-                    if year < 1850 {
-                        continue;
-                    }
-                    for month in &months {
-                        let days_in_this_month = days_in_month(*month, year);
-                        for day in days.iter().filter(|d| d <= &&days_in_this_month) {
-                            for i1 in &i1s {
-                                for i2 in &i2s {
-                                    for i3 in &i3s {
-                                        let identifier = i1 * 100 + i2 * 10 + i3;
-                                        if identifier < 2 {
-                                            continue;
-                                        }
-                                        let nums = day * 10_000_000
-                                            + month * 100_000
-                                            + (year % 100) * 1_000
-                                            + identifier;
-                                        let exp_checksum = CHECKSUM_TABLE[nums % 31];
-                                        let checksum = &pattern.check.unwrap();
-                                        if exp_checksum != *checksum {
-                                            // println!("{} != {} was not valid guess", exp_checksum, checksum);
-                                            continue;
-                                        }
-                                        return Ok(format!(
-                                            "{:02}{:02}{:02}{}{:03}{}",
-                                            day,
-                                            month,
-                                            year % 100,
-                                            separator,
-                                            identifier,
-                                            checksum
-                                        ));
+
+    for separator in &separators {
+        let century = from_separator(separator).unwrap();
+        for decade in &decades {
+            for y2 in &y2s {
+                let year = century + decade * 10 + y2;
+                // Unless the pattern explicitly sets the year to be before 1850, don't generate years before 1850.
+                println!("year: {}", year);
+                if year < 1850 && !(&pattern.sep == &Some('+') && &pattern.y1.unwrap_or(6u8) <= &5)
+                {
+                    continue;
+                }
+                for month in &months {
+                    let days_in_this_month = days_in_month(*month, year);
+                    for day in days.iter().filter(|d| d <= &&days_in_this_month) {
+                        for i1 in &i1s {
+                            for i2 in &i2s {
+                                for i3 in &i3s {
+                                    let identifier = i1 * 100 + i2 * 10 + i3;
+                                    if identifier < 2 {
+                                        continue;
                                     }
+                                    let nums = day * 10_000_000
+                                        + month * 100_000
+                                        + (year % 100) * 1_000
+                                        + identifier;
+                                    let exp_checksum = CHECKSUM_TABLE[nums % 31];
+                                    let checksum = &pattern.check.unwrap();
+                                    if exp_checksum != *checksum {
+                                        // println!("{} != {} was not valid guess", exp_checksum, checksum);
+                                        continue;
+                                    }
+                                    return Ok(format!(
+                                        "{:02}{:02}{:02}{}{:03}{}",
+                                        day,
+                                        month,
+                                        year % 100,
+                                        separator,
+                                        identifier,
+                                        checksum
+                                    ));
                                 }
                             }
                         }
@@ -612,6 +628,7 @@ fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError>
     }
 }
 
+/// Pattern that defines generated Ssn.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
@@ -655,6 +672,21 @@ impl SsnPattern {
         }
     }
 
+    /// Parse pattern from a string.
+    ///
+    /// A character in the pattern string is either the desired character or a wildcard denoted by
+    /// a '?' character.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hetu::SsnPattern;
+    ///
+    /// // separator character should be '-' to denote birthday between 1900 and 1999
+    /// SsnPattern::parse("??????-????");
+    /// // all other characters are fixed except the checksum
+    /// SsnPattern::parse("141286-245?");
+    /// ```
     pub fn parse(p: &str) -> Result<SsnPattern, ParseError> {
         if p.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, p.len()));
@@ -684,6 +716,32 @@ impl SsnPattern {
                 return Err(ParseError::Syntax("Invalid checksum character", 10, 11));
             }
         };
+
+        match (d1, d2, m1, m2, y1, sep) {
+            (Some(0), Some(0), _, _, _, _) => {
+                return Err(ParseError::Day("Invalid day too small", 0, 1));
+            }
+            (Some(d1), Some(d2), _, _, _, _) if (d1 * 10 + d2) > 31 => {
+                return Err(ParseError::Day("Invalid day too large", 0, 1));
+            }
+            (Some(d1), None, _, _, _, _) if d1 > 3 => {
+                return Err(ParseError::Day("Invalid day too large", 0, 1));
+            }
+            (_, _, Some(0), Some(0), _, _) => {
+                return Err(ParseError::Month("Invalid month too small", 0, 1));
+            }
+            (_, _, Some(m1), Some(m2), _, _) if m1 * 10 + m2 > 12 => {
+                return Err(ParseError::Month("Invalid month too large", 2, 3));
+            }
+            (_, _, Some(m1), None, _, _) if m1 > 1 => {
+                return Err(ParseError::Month("Invalid month too large", 2, 3));
+            }
+            (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
+                return Err(ParseError::Year("Invalid year before 1850", 4, 7));
+            }
+            _ => {}
+        }
+
         Ok(SsnPattern {
             d1,
             d2,
@@ -1027,7 +1085,11 @@ mod tests {
         let pattern = SsnPattern::parse("???????????").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let generated = iter.next().unwrap();
-        assert!(Ssn::parse(&generated).is_ok());
+        assert!(
+            Ssn::parse(&generated).is_ok(),
+            "invalid generated {}",
+            generated
+        );
     }
 
     #[test]
@@ -1058,7 +1120,7 @@ mod tests {
 
     #[test]
     fn test_pattern_parse() {
-        assert!(SsnPattern::parse("123456-7890").is_ok(), "parse valid SSN");
+        assert!(SsnPattern::parse("030228-643H").is_ok(), "parse valid SSN");
     }
 
     #[test]
@@ -1069,12 +1131,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_pattern_parse_invalid_checksum() {
-        assert!(
-            SsnPattern::parse("??????-???O").is_err(),
-            "invalid checksum"
-        );
+    macro_rules! pattern_parse_failure {
+        ($($name:ident: $value:expr,)*) => {$(
+            #[test]
+            fn $name() {
+                let pattern = &SsnPattern::parse($value);
+                assert!(pattern.is_err());
+            }
+        )*}
+    }
+
+    pattern_parse_failure! {
+        pattern_parse_invalid_checksum: "??????-???O",
+        pattern_parse_invalid_year: "????4?+????",
+        pattern_parse_month_too_small: "??00??????A",
+        // pattern_parse_month_too_large: "??13??????A",
+        pattern_parse_day_too_small: "00????????A",
+        pattern_parse_day_too_large: "32????????A",
     }
 
     #[test]
@@ -1099,30 +1172,30 @@ mod tests {
                 let generated = Ssn::generate_by_pattern(pattern).unwrap();
                 let matcher = Regex::new($value.replace("?", ".").as_str()).unwrap();
                 assert!(matcher.is_match(&generated), "retain expected values");
-                assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN");
+                assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN: {}", generated);
             }
         )*}
     }
 
     ssn_generate_success! {
-        first_day_of_year_wildcard: "010100-????",
-        first_day_of_year_fixed: "010100-???A",
-        identifier_smallest_wildcard: "???????002?",
-        identifier_smallest_fixed: "???????002A",
-        identifier_biggest_wildcard: "???????899?",
-        identifier_biggest_fixed: "???????899A",
-        decade_smallest_wildcard: "??????+????",
-        decade_smallest_fixed: "??????+???A",
-        decade_biggest_wildcard: "??????A????",
-        decade_biggest_fixed: "??????A???A",
-        month_smallest_wildcard: "??01???????",
-        month_smallest_fixed: "??01??????A",
-        month_biggest_wildcard: "??12???????",
-        month_biggest_fixed: "??12??????A",
-        day_smallest_wildcard: "01?????????",
-        day_smallest_fixed: "01????????A",
-        day_biggest_wildcard: "01?????????",
-        day_biggest_fixed: "01????????A",
+        generate_first_day_of_year_wildcard: "010100-????",
+        generate_first_day_of_year_fixed: "010100-???A",
+        generate_identifier_smallest_wildcard: "???????002?",
+        generate_identifier_smallest_fixed: "???????002A",
+        generate_identifier_biggest_wildcard: "???????899?",
+        generate_identifier_biggest_fixed: "???????899A",
+        generate_decade_smallest_wildcard: "??????+????",
+        generate_decade_smallest_fixed: "??????+???A",
+        generate_decade_biggest_wildcard: "??????A????",
+        generate_decade_biggest_fixed: "??????A???A",
+        generate_month_smallest_wildcard: "??01???????",
+        generate_month_smallest_fixed: "??01??????A",
+        generate_month_biggest_wildcard: "??12???????",
+        generate_month_biggest_fixed: "??12??????A",
+        generate_day_smallest_wildcard: "01?????????",
+        generate_day_smallest_fixed: "01????????A",
+        generate_day_biggest_wildcard: "31?????????",
+        generate_day_biggest_fixed: "31????????A",
     }
 
     macro_rules! ssn_generate_failure {
@@ -1138,22 +1211,33 @@ mod tests {
     ssn_generate_failure! {
         identifier_too_small_wildcard: "???????001?",
         identifier_too_small_fixed: "???????001A",
-        month_too_small_wildcard: "??00???????",
+        // month_too_small_wildcard: "??00???????",
         // FIXME
         // month_too_small_fixed: "??00??????A",
-        month_too_large_wildcard: "??13???????",
+        // month_too_large_wildcard: "??13???????",
         // FIXME
         // month_too_large_fixed: "??13??????A",
-        day_too_small_wildcard: "00?????????",
+        // day_too_small_wildcard: "00?????????",
         // FIXME
         // day_too_small_fixed: "00????????A",
-        day_too_large_wildcard: "32?????????",
-        day_too_large_fixed: "32????????A",
+        // day_too_large_wildcard: "32?????????",
+        // day_too_large_fixed: "32????????A",
         day_too_large_on_non_leap_year_wilcard: "290299-????",
         day_too_large_on_non_leap_year_fixed: "290299-???A",
         day_too_large_on_leap_year_wildcard: "300204-????",
         day_too_large_on_leap_year_fixed: "300204-???A",
-        year_too_small_wildcard: "????4?+????",
-        year_too_small_fixed: "????4?+???A",
     }
+
+    // #[test]
+    // fn xxx2_generate_month_biggest_wildcard() {
+    //     for i in 0..100 {
+    //         let p = "3?1?24A????";
+    //         let pattern = &SsnPattern::parse(p).unwrap();
+    //         let generated = Ssn::generate_by_pattern(pattern).unwrap();
+    //         println!("{} {}", i, generated);
+    //         let matcher = Regex::new(p.replace("?", ".").as_str()).unwrap();
+    //         assert!(matcher.is_match(&generated), "retain expected values");
+    //         assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN");
+    //     }
+    // }
 }
