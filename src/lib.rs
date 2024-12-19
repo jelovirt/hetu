@@ -105,16 +105,15 @@ pub fn generate_by_pattern_with_any_checksum(
 ) -> Result<String, GenerateError> {
     let mut rng = rand::thread_rng();
 
-    // FIXME: 07062?????? should not generate years before 1850
-    let century = match pattern
-        .sep
-        .map(|c| from_separator(&c))
-        .unwrap_or_else(|| Ok(1800 + rng.gen_range(0, 3) * 100))
-    {
-        Ok(v) => v,
-        Err(_) => return Err(GenerateError),
+    let century = match (pattern.sep, pattern.y1) {
+        (Some(c), _) => match from_separator(&c) {
+            Ok(v) => v,
+            Err(_) => return Err(GenerateError),
+        },
+        // Unless the pattern explicitly sets the year to be before 1850, don't generate years before 1850.
+        (None, Some(y1)) if y1 < 6 => 1800 + rng.gen_range(1, 3) * 100,
+        _ => 1800 + rng.gen_range(0, 3) * 100,
     };
-    // let separator: char = to_separator(century, &mut rng)?;
     let separator: char = match pattern.sep {
         Some(s) => s,
         None => match century {
@@ -1117,17 +1116,20 @@ mod tests {
         assert_eq!(first, second);
     }
 
-    #[test]
-    fn test_pattern_parse() {
-        assert!(SsnPattern::parse("030228-643H").is_ok(), "parse valid SSN");
+    macro_rules! pattern_parse_success {
+        ($($name:ident: $value:expr,)*) => {$(
+            #[test]
+            fn $name() {
+                let pattern = &SsnPattern::parse($value);
+                assert!(pattern.is_ok());
+            }
+        )*}
     }
 
-    #[test]
-    fn test_pattern_parse_all_wildcard() {
-        assert!(
-            SsnPattern::parse("??????-????").is_ok(),
-            "parse all wildcard input"
-        );
+    pattern_parse_success! {
+        pattern_parse: "030228-643H",
+        pattern_parse_all_wildcard: "???????????",
+        pattern_parse_valid_year: "????4?+????",
     }
 
     macro_rules! pattern_parse_failure {
@@ -1142,9 +1144,8 @@ mod tests {
 
     pattern_parse_failure! {
         pattern_parse_invalid_checksum: "??????-???O",
-        pattern_parse_invalid_year: "????4?+????",
         pattern_parse_month_too_small: "??00??????A",
-        // pattern_parse_month_too_large: "??13??????A",
+        pattern_parse_month_too_large: "??13??????A",
         pattern_parse_day_too_small: "00????????A",
         pattern_parse_day_too_large: "32????????A",
     }
