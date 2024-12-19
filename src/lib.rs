@@ -105,6 +105,7 @@ pub fn generate_by_pattern_with_any_checksum(
 ) -> Result<String, GenerateError> {
     let mut rng = rand::thread_rng();
 
+    // FIXME: 07062?????? should not generate years before 1850
     let century = match pattern
         .sep
         .map(|c| from_separator(&c))
@@ -455,7 +456,6 @@ impl Iterator for SsnIterator {
             };
             let days_in_this_month = days_in_month(month, year);
             if day >= days_in_this_month {
-                println!("day was too large");
                 continue;
             }
             // identifier
@@ -473,7 +473,6 @@ impl Iterator for SsnIterator {
             let i3 = self.all[i3_index];
             let identifier = i1 * 100 + i2 * 10 + i3;
             if identifier < 2 {
-                println!("identifier was too small");
                 continue;
             }
             // checksum
@@ -482,7 +481,6 @@ impl Iterator for SsnIterator {
             let checksum = match self.check {
                 Some(c) => {
                     if exp_checksum != c {
-                        println!("{} != {} was not valid guess", exp_checksum, c);
                         continue;
                     }
                     c
@@ -525,9 +523,10 @@ impl Ssn {
         }
 
         let year = date % 100 + from_separator(&separator)?;
-        if year < 1850 {
-            return Err(ParseError::Day("Invalid year before 1850", 4, 6));
-        }
+        // XXX: <1850 is a valid year, it should parse correctly
+        // if year < 1850 {
+        //     return Err(ParseError::Day("Invalid year before 1850", 4, 6));
+        // }
 
         let days_in_month = days_in_month(month, year);
         let day = date / 10_000;
@@ -736,9 +735,9 @@ impl SsnPattern {
             (_, _, Some(m1), None, _, _) if m1 > 1 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
             }
-            (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
-                return Err(ParseError::Year("Invalid year before 1850", 4, 7));
-            }
+            // (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
+            //     return Err(ParseError::Year("Invalid year before 1850", 4, 7));
+            // }
             _ => {}
         }
 
