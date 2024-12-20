@@ -715,24 +715,27 @@ impl SsnPattern {
             }
         };
 
-        match (d1, d2, m1, m2, y1, sep) {
-            (Some(0), Some(0), _, _, _, _) => {
+        match (d1, d2, m1, m2, y1, y2, sep) {
+            (Some(0), Some(0), _, _, _, _, _) => {
                 return Err(ParseError::Day("Invalid day too small", 0, 1));
             }
-            (Some(d1), Some(d2), _, _, _, _) if (d1 * 10 + d2) > 31 => {
+            (Some(d1), Some(d2), _, _, _, _,_) if (d1 * 10 + d2) > 31 => {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
-            (Some(d1), None, _, _, _, _) if d1 > 3 => {
+            (Some(d1), None, _, _, _,_, _) if d1 > 3 => {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
-            (_, _, Some(0), Some(0), _, _) => {
+            (_, _, Some(0), Some(0), _,_, _) => {
                 return Err(ParseError::Month("Invalid month too small", 0, 1));
             }
-            (_, _, Some(m1), Some(m2), _, _) if m1 * 10 + m2 > 12 => {
+            (_, _, Some(m1), Some(m2), _,_, _) if m1 * 10 + m2 > 12 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
             }
-            (_, _, Some(m1), None, _, _) if m1 > 1 => {
+            (_, _, Some(m1), None, _, _,_) if m1 > 1 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
+            }
+            (Some(d1), Some(d2), Some(0), Some(2), Some(y1), Some(y2), Some(sep)) if (d1 * 10 + d2)as usize  > days_in_month(2, from_separator(&sep)? + y1 as usize * 10 + y2 as usize) => {
+                    return Err(ParseError::Month("Invalid day too large", 2, 7));
             }
             // (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
             //     return Err(ParseError::Year("Invalid year before 1850", 4, 7));
@@ -1130,6 +1133,8 @@ mod tests {
         pattern_parse: "030228-643H",
         pattern_parse_all_wildcard: "???????????",
         pattern_parse_valid_year: "????4?+????",
+        pattern_parse_leap_year: "290224A????",
+        pattern_parse_not_leap_year: "280225A????",
     }
 
     macro_rules! pattern_parse_failure {
@@ -1143,10 +1148,21 @@ mod tests {
     }
 
     pattern_parse_failure! {
+        identifier_too_small_wildcard: "???????001?",
+        identifier_too_small_fixed: "???????001A",
         pattern_parse_invalid_checksum: "??????-???O",
         pattern_parse_month_too_small: "??00??????A",
         pattern_parse_month_too_large: "??13??????A",
         pattern_parse_day_too_small: "00????????A",
+
+
+        pattern_parse_day_too_large_on_non_leap_year_wilcard: "290299-????",
+        pattern_parse_day_too_large_on_non_leap_year_fixed: "290299-???A",
+        pattern_parse_day_too_large_on_leap_year_wildcard: "300204-????",
+        pattern_parse_day_too_large_on_leap_year_fixed: "300204-???A",
+
+        pattern_parse_day_too_large_leap_year: "300224A????",
+        pattern_parse_day_too_large_not_leap_year: "290225A????",
         pattern_parse_day_too_large: "32????????A",
     }
 
@@ -1209,8 +1225,8 @@ mod tests {
     }
 
     ssn_generate_failure! {
-        identifier_too_small_wildcard: "???????001?",
-        identifier_too_small_fixed: "???????001A",
+        // identifier_too_small_wildcard: "???????001?",
+        // identifier_too_small_fixed: "???????001A",
         // month_too_small_wildcard: "??00???????",
         // FIXME
         // month_too_small_fixed: "??00??????A",
@@ -1222,10 +1238,10 @@ mod tests {
         // day_too_small_fixed: "00????????A",
         // day_too_large_wildcard: "32?????????",
         // day_too_large_fixed: "32????????A",
-        day_too_large_on_non_leap_year_wilcard: "290299-????",
-        day_too_large_on_non_leap_year_fixed: "290299-???A",
-        day_too_large_on_leap_year_wildcard: "300204-????",
-        day_too_large_on_leap_year_fixed: "300204-???A",
+        // day_too_large_on_non_leap_year_wilcard: "290299-????",
+        // day_too_large_on_non_leap_year_fixed: "290299-???A",
+        // day_too_large_on_leap_year_wildcard: "300204-????",
+        // day_too_large_on_leap_year_fixed: "300204-???A",
     }
 
     // #[test]
