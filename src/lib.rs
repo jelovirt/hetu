@@ -715,6 +715,13 @@ impl SsnPattern {
             }
         };
 
+        match (i1, i2, i3) {
+            (Some(0), Some(0), Some(0)) | (Some(0), Some(0), Some(1)) => {
+                return Err(ParseError::Identifier("Invalid identifier too small", 7, 10));
+            }
+            _ => {}
+        }
+
         match (d1, d2, m1, m2, y1, y2, sep) {
             (Some(0), Some(0), _, _, _, _, _) => {
                 return Err(ParseError::Day("Invalid day too small", 0, 1));
