@@ -92,4 +92,10 @@ $ hetu -p "??????-???D"
 241151-028D
 ```
 
+## Related projects
+
+* [personnummer](https://crates.io/crates/personnummer)
+* [kennitala](https://crates.io/crates/kennitala)
+* [amka](https://crates.io/crates/amka)
+
 [1]: https://dvv.fi/en/personal-identity-code
