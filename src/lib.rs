@@ -674,7 +674,6 @@ impl SsnPattern {
         i3: Option<u8>,
         check: Option<char>,
     ) -> SsnPattern {
-        // TODO: move validation here
         SsnPattern {
             d1,
             d2,
@@ -788,9 +787,19 @@ impl SsnPattern {
             _ => {}
         }
 
-        Ok(SsnPattern::new(
-            d1, d2, m1, m2, y1, y2, sep, i1, i2, i3, check,
-        ))
+        Ok(SsnPattern {
+            d1,
+            d2,
+            m1,
+            m2,
+            y1,
+            y2,
+            sep,
+            i1,
+            i2,
+            i3,
+            check,
+        })
     }
 }
 
