@@ -5,6 +5,7 @@ use rand::{Rng, ThreadRng};
 use std::error;
 use std::fmt;
 
+/// The personal identity code.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Ssn {
     pub day: usize,
@@ -501,7 +502,7 @@ impl Iterator for SsnIterator {
 }
 
 impl Ssn {
-    /// Parse HETU.
+    /// Parse personal identity code.
     pub fn parse(ssn: &str) -> Result<Ssn, ParseError> {
         if ssn.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, ssn.len()));
@@ -560,10 +561,10 @@ impl Ssn {
         })
     }
 
-    /// Generate random HETU.
+    /// Generate random personal identity code.
     ///
-    /// Temporary HETU with identifier range of 900-999 will never be created. To generate a
-    /// temporary HETU, use `Ssn::generate_by_pattern(pattern)` with pattern that explicity has '9' as the
+    /// Temporary personal identity code with identifier range of 900-999 will never be created. To generate a
+    /// temporary personal identity code, use `Ssn::generate_by_pattern(pattern)` with pattern that explicity has '9' as the
     /// first character of the identifier part.
     pub fn generate() -> String {
         let mut rng = rand::thread_rng();
@@ -586,7 +587,7 @@ impl Ssn {
         )
     }
 
-    /// Generate HETU with matching fields.
+    /// Generate personal identity code with matching fields.
     pub fn generate_by_pattern(pattern: &SsnPattern) -> Result<String, GenerateError> {
         match &pattern.check {
             Some(_) => generate_by_pattern_with_fixed_checksum(pattern),
@@ -594,7 +595,7 @@ impl Ssn {
         }
     }
 
-    /// Iterator for generated HETUs with matching fields.
+    /// Iterator for generated personal identity code with matching fields.
     pub fn iter<'a>(pattern: &SsnPattern) -> impl Iterator<Item = String> + 'a {
         SsnIterator::new(pattern)
     }
@@ -670,10 +671,10 @@ impl SsnPattern {
         }
     }
 
-    /// Parse pattern from a string.
+    /// Parse personal identity code pattern from a string.
     ///
     /// A character in the pattern string is either the desired character or a wildcard denoted by
-    /// a '?' character.
+    /// a '?' character. Any character in the pattern can be a wildcard.
     ///
     /// # Example
     ///
@@ -717,7 +718,11 @@ impl SsnPattern {
 
         match (i1, i2, i3) {
             (Some(0), Some(0), Some(0)) | (Some(0), Some(0), Some(1)) => {
-                return Err(ParseError::Identifier("Invalid identifier too small", 7, 10));
+                return Err(ParseError::Identifier(
+                    "Invalid identifier too small",
+                    7,
+                    10,
+                ));
             }
             _ => {}
         }
@@ -726,23 +731,26 @@ impl SsnPattern {
             (Some(0), Some(0), _, _, _, _, _) => {
                 return Err(ParseError::Day("Invalid day too small", 0, 1));
             }
-            (Some(d1), Some(d2), _, _, _, _,_) if (d1 * 10 + d2) > 31 => {
+            (Some(d1), Some(d2), _, _, _, _, _) if (d1 * 10 + d2) > 31 => {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
-            (Some(d1), None, _, _, _,_, _) if d1 > 3 => {
+            (Some(d1), None, _, _, _, _, _) if d1 > 3 => {
                 return Err(ParseError::Day("Invalid day too large", 0, 1));
             }
-            (_, _, Some(0), Some(0), _,_, _) => {
+            (_, _, Some(0), Some(0), _, _, _) => {
                 return Err(ParseError::Month("Invalid month too small", 0, 1));
             }
-            (_, _, Some(m1), Some(m2), _,_, _) if m1 * 10 + m2 > 12 => {
+            (_, _, Some(m1), Some(m2), _, _, _) if m1 * 10 + m2 > 12 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
             }
-            (_, _, Some(m1), None, _, _,_) if m1 > 1 => {
+            (_, _, Some(m1), None, _, _, _) if m1 > 1 => {
                 return Err(ParseError::Month("Invalid month too large", 2, 3));
             }
-            (Some(d1), Some(d2), Some(0), Some(2), Some(y1), Some(y2), Some(sep)) if (d1 * 10 + d2)as usize  > days_in_month(2, from_separator(&sep)? + y1 as usize * 10 + y2 as usize) => {
-                    return Err(ParseError::Month("Invalid day too large", 2, 7));
+            (Some(d1), Some(d2), Some(0), Some(2), Some(y1), Some(y2), Some(sep))
+                if (d1 * 10 + d2) as usize
+                    > days_in_month(2, from_separator(&sep)? + y1 as usize * 10 + y2 as usize) =>
+            {
+                return Err(ParseError::Month("Invalid day too large", 2, 7));
             }
             // (_, _, _, _, Some(y1), Some(sep)) if from_separator(&sep)? == 1800 && y1 < 5 => {
             //     return Err(ParseError::Year("Invalid year before 1850", 4, 7));
@@ -819,13 +827,13 @@ pub struct GenerateError;
 
 impl fmt::Display for GenerateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Unable to generate matching hetu")
+        write!(f, "Unable to generate matching personal identity code")
     }
 }
 
 impl error::Error for GenerateError {
     fn description(&self) -> &str {
-        "Unable to generate matching hetu"
+        "Unable to generate matching personal identity code"
     }
 
     fn cause(&self) -> Option<&(dyn error::Error + 'static)> {

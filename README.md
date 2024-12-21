@@ -1,10 +1,9 @@
-# HETU validator and generator in Rust
+# Personal identity code validator and generator in Rust
 
 [![Crates.io](https://img.shields.io/crates/v/hetu.svg)](https://crates.io/crates/hetu)
 [![Tests](https://github.com/jelovirt/hetu/actions/workflows/test.yml/badge.svg)](https://github.com/jelovirt/hetu/actions/workflows/test.yml)
 
-
-Simple crate for validating and generating [Finnish Personal Identity Code (HETU)][1].
+Simple crate for validating and generating [Finnish Personal Identity Code][1] (henkilötunnus, <abbr>hetu</abbr>).
 
 Supports the [1.1.2023 format](https://dvv.fi/hetu-uudistus).
 
@@ -19,7 +18,7 @@ Add this to your `Cargo.toml`
 git = "https://github.com/jelovirt/hetu.git"
 ```
 
-To validate:
+To validate a personal identity code:
 
 ```rust
 extern crate hetu;
@@ -27,14 +26,14 @@ use hetu::Ssn;
 
 pub fn main() {
     if Ssn::parse("121212-121D").is_ok() {
-        println!("Valid HETU")
+        println!("Valid")
     } else {
         println!("Invalid")
     }
 }
 ```
 
-To generate:
+To generate a personal identity code:
 
 ```rust
 extern crate hetu;
@@ -45,7 +44,7 @@ pub fn main() {
 }
 ```
 
-To generate by pattern:
+To generate a personal identity code by pattern:
 
 ```rust
 extern crate hetu;
@@ -61,9 +60,9 @@ pub fn main() {
 ## CLI
 
 Command line tool `hetu` can be used to either validate or randomly generate
-identifiers.
+personal identity codes.
 
-To validate:
+To validate a personal identity code:
 
 ```bash
 $ hetu 121212-121D
@@ -75,14 +74,14 @@ Error: Invalid checksum: expected D
             ^
 ```
 
-To generate:
+To generate a personal identity code:
 
 ```bash
 $ hetu
 121212-121D
 ```
 
-To generate by pattern that can contain wildcards:
+To generate a personal identity code by pattern that can contain wildcards:
 
 ```bash
 $ hetu -p "121212-121?"
