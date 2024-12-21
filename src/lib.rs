@@ -669,6 +669,14 @@ impl Default for SsnPattern {
     }
 }
 
+impl<'a> TryFrom<&'a str> for SsnPattern {
+    type Error = ParseError<'a>;
+
+    fn try_from(ssn: &'a str) -> Result<Self, Self::Error> {
+        SsnPattern::parse(ssn)
+    }
+}
+
 impl SsnPattern {
     pub fn new(
         d1: Option<u8>,
@@ -718,13 +726,14 @@ impl SsnPattern {
     ///
     /// ```
     /// use hetu::SsnPattern;
+    /// use std::convert::TryFrom;
     ///
     /// // separator character should be '-' to denote birthday between 1900 and 1999
-    /// SsnPattern::parse("??????-????");
+    /// SsnPattern::try_from("??????-????");
     /// // all other characters are fixed except the checksum
-    /// SsnPattern::parse("141286-245?");
+    /// SsnPattern::try_from("141286-245?");
     /// ```
-    pub fn parse(p: &str) -> Result<SsnPattern, ParseError> {
+    fn parse(p: &str) -> Result<SsnPattern, ParseError> {
         if p.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, p.len()));
         }
@@ -1138,7 +1147,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let pattern = SsnPattern::parse("010197-100P").unwrap();
+        let pattern = SsnPattern::try_from("010197-100P").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let generated = iter.next().unwrap();
         assert!(Ssn::try_from(generated.as_str()).is_ok());
@@ -1146,7 +1155,7 @@ mod tests {
 
     #[test]
     fn test_iter_wildcard() {
-        let pattern = SsnPattern::parse("???????????").unwrap();
+        let pattern = SsnPattern::try_from("???????????").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let generated = iter.next().unwrap();
         assert!(
@@ -1158,7 +1167,7 @@ mod tests {
 
     #[test]
     fn test_iter_fixed_repeated() {
-        let pattern = SsnPattern::parse("010197-100P").unwrap();
+        let pattern = SsnPattern::try_from("010197-100P").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let first = iter.next().unwrap();
         let second = iter.next().unwrap();
@@ -1167,7 +1176,7 @@ mod tests {
 
     #[test]
     fn test_iter_wildcard_repeated() {
-        let pattern = SsnPattern::parse("?10197-100?").unwrap();
+        let pattern = SsnPattern::try_from("?10197-100?").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let first = vec![
             iter.next().unwrap(),
@@ -1186,7 +1195,7 @@ mod tests {
         ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
-                let pattern = &SsnPattern::parse($value);
+                let pattern = &SsnPattern::try_from($value);
                 assert!(pattern.is_ok());
             }
         )*}
@@ -1204,7 +1213,7 @@ mod tests {
         ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
-                let pattern = &SsnPattern::parse($value);
+                let pattern = &SsnPattern::try_from($value);
                 assert!(pattern.is_err());
             }
         )*}
@@ -1247,7 +1256,7 @@ mod tests {
         ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
-                let pattern = &SsnPattern::parse($value).unwrap();
+                let pattern = &SsnPattern::try_from($value).unwrap();
                 let generated = Ssn::generate_by_pattern(pattern).unwrap();
                 let matcher = Regex::new($value.replace("?", ".").as_str()).unwrap();
                 assert!(matcher.is_match(&generated), "retain expected values");
@@ -1281,7 +1290,7 @@ mod tests {
         ($($name:ident: $value:expr,)*) => {$(
             #[test]
             fn $name() {
-                let pattern = &SsnPattern::parse($value).unwrap();
+                let pattern = &SsnPattern::try_from($value).unwrap();
                 assert!(Ssn::generate_by_pattern(pattern).is_err());
             }
         )*}
@@ -1311,7 +1320,7 @@ mod tests {
     // fn xxx2_generate_month_biggest_wildcard() {
     //     for i in 0..100 {
     //         let p = "3?1?24A????";
-    //         let pattern = &SsnPattern::parse(p).unwrap();
+    //         let pattern = &SsnPattern::try_from(p).unwrap();
     //         let generated = Ssn::generate_by_pattern(pattern).unwrap();
     //         println!("{} {}", i, generated);
     //         let matcher = Regex::new(p.replace("?", ".").as_str()).unwrap();
