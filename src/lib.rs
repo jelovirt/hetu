@@ -7,6 +7,24 @@ use std::error;
 use std::fmt;
 
 /// The personal identity code.
+///
+/// # Example
+///
+/// Parse and validate  personal identity code:
+///
+/// ```
+/// use hetu::Ssn;
+/// use std::convert::TryFrom;
+///
+/// Ssn::try_from("141286-245T");
+/// ```
+///
+/// Generate random personal identity code:
+/// ```
+/// use hetu::Ssn;
+///
+/// Ssn::generate();
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Ssn {
     pub day: usize,
@@ -505,6 +523,7 @@ impl Iterator for SsnIterator {
 impl<'a> TryFrom<&'a str> for Ssn {
     type Error = ParseError<'a>;
 
+    /// Parse personal identity code.
     fn try_from(ssn: &'a str) -> Result<Self, Self::Error> {
         Ssn::parse(ssn)
     }
@@ -637,6 +656,17 @@ fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError>
 }
 
 /// Pattern that defines generated Ssn.
+///
+/// # Example
+///
+/// Parse personal identity code pattern:
+/// ```
+/// use hetu::{Ssn, SsnPattern};
+/// use std::convert::TryFrom;
+///
+/// let pattern = SsnPattern::try_from("141286-245?").unwrap();
+/// Ssn::generate_by_pattern(&pattern);
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
@@ -672,6 +702,7 @@ impl Default for SsnPattern {
 impl<'a> TryFrom<&'a str> for SsnPattern {
     type Error = ParseError<'a>;
 
+    /// Parse personal identity code pattern.
     fn try_from(ssn: &'a str) -> Result<Self, Self::Error> {
         SsnPattern::parse(ssn)
     }
