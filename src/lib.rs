@@ -2,6 +2,7 @@ extern crate core;
 extern crate rand;
 
 use rand::{Rng, ThreadRng};
+use std::convert::TryFrom;
 use std::error;
 use std::fmt;
 
@@ -501,9 +502,17 @@ impl Iterator for SsnIterator {
     }
 }
 
+impl<'a> TryFrom<&'a str> for Ssn {
+    type Error = ParseError<'a>;
+
+    fn try_from(ssn: &'a str) -> Result<Self, Self::Error> {
+        Ssn::parse(ssn)
+    }
+}
+
 impl Ssn {
     /// Parse personal identity code.
-    pub fn parse(ssn: &str) -> Result<Ssn, ParseError> {
+    fn parse(ssn: &str) -> Result<Ssn, ParseError> {
         if ssn.len() != 11 {
             return Err(ParseError::Syntax("Invalid length", 0, ssn.len()));
         }
@@ -952,14 +961,14 @@ mod tests {
     #[test]
     fn test_parse_empty_string() {
         assert!(
-            Ssn::parse("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
+            Ssn::try_from("").unwrap_err() == ParseError::Syntax("Invalid length", 0, 0),
             "fail when given empty String"
         );
     }
     #[test]
     fn test_parse_month_too_large() {
         assert!(
-            Ssn::parse("301398-1233").unwrap_err()
+            Ssn::try_from("301398-1233").unwrap_err()
                 == ParseError::Month("Invalid month number", 2, 4),
             "fail when given birthdate with month out of bounds"
         );
@@ -967,70 +976,77 @@ mod tests {
     #[test]
     fn test_parse_day_too_large() {
         assert!(
-            Ssn::parse("320198-123P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            Ssn::try_from("320198-123P").unwrap_err()
+                == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birthdate with date out of bounds in January"
         );
     }
     #[test]
     fn test_parse_day_too_large_on_non_leap_year() {
         assert!(
-            Ssn::parse("290299-123U").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            Ssn::try_from("290299-123U").unwrap_err()
+                == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birthdate with date out of bounds in February, non leap year"
         );
     }
     #[test]
     fn test_parse_day_too_large_on_leap_year() {
         assert!(
-            Ssn::parse("300204-123Y").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            Ssn::try_from("300204-123Y").unwrap_err()
+                == ParseError::Day("Invalid day number", 0, 2),
             "fail when given birth date with date out of bounds in February, a leap year"
         );
     }
     #[test]
     fn test_parse_invalid_year_characters() {
         assert!(
-            Ssn::parse("0101AA-123A").unwrap_err() == ParseError::Syntax("Date not integer", 0, 6),
+            Ssn::try_from("0101AA-123A").unwrap_err()
+                == ParseError::Syntax("Date not integer", 0, 6),
             "fail when given birth date with alphabets"
         );
     }
     #[test]
     fn test_parse_invalid_separator() {
         assert!(
-            Ssn::parse("010195_433X").unwrap_err() == ParseError::Syntax("Invalid separator", 6, 7),
+            Ssn::try_from("010195_433X").unwrap_err()
+                == ParseError::Syntax("Invalid separator", 6, 7),
             "fail when given invalid separator chars"
         );
     }
     #[test]
     fn test_parse_date_too_long() {
         assert!(
-            Ssn::parse("01011995+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 13),
+            Ssn::try_from("01011995+433X").unwrap_err()
+                == ParseError::Syntax("Invalid length", 0, 13),
             "fail when given too long date"
         );
     }
     #[test]
     fn test_parse_date_too_short() {
         assert!(
-            Ssn::parse("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
+            Ssn::try_from("01015+433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
             "fail when given too short date"
         );
     }
     #[test]
     fn test_parse_identifier_too_long() {
         assert!(
-            Ssn::parse("010195+4433X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            Ssn::try_from("010195+4433X").unwrap_err()
+                == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given too long checksum part"
         );
     }
     #[test]
     fn test_parse_identifier_too_short() {
         assert!(
-            Ssn::parse("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
+            Ssn::try_from("010195+33X").unwrap_err() == ParseError::Syntax("Invalid length", 0, 10),
             "fail when given too long checksum part"
         );
     }
     #[test]
     fn test_parse_male() {
         assert_eq!(
-            Ssn::parse("010195+433X").unwrap(),
+            Ssn::try_from("010195+433X").unwrap(),
             Ssn {
                 day: 1,
                 month: 1,
@@ -1042,7 +1058,7 @@ mod tests {
     #[test]
     fn test_parse_female() {
         assert_eq!(
-            Ssn::parse("010197-100P").unwrap(),
+            Ssn::try_from("010197-100P").unwrap(),
             Ssn {
                 day: 1,
                 month: 1,
@@ -1054,7 +1070,7 @@ mod tests {
     #[test]
     fn test_parse_1900s() {
         assert_eq!(
-            Ssn::parse("010114A173M").unwrap(),
+            Ssn::try_from("010114A173M").unwrap(),
             Ssn {
                 day: 1,
                 month: 1,
@@ -1067,7 +1083,7 @@ mod tests {
     fn test_parse_leap_year() {
         // pass when given valid finnishSSN with leap year, divisible only by 4
         assert_eq!(
-            Ssn::parse("290296-7808").unwrap(),
+            Ssn::try_from("290296-7808").unwrap(),
             Ssn {
                 day: 29,
                 month: 2,
@@ -1079,7 +1095,8 @@ mod tests {
     #[test]
     fn test_parse_invalid_day_on_leap_year() {
         assert!(
-            Ssn::parse("290200-101P").unwrap_err() == ParseError::Day("Invalid day number", 0, 2),
+            Ssn::try_from("290200-101P").unwrap_err()
+                == ParseError::Day("Invalid day number", 0, 2),
             "fail when given valid finnishSSN with leap year, divisible by 100 and not by 400"
         );
     }
@@ -1087,7 +1104,7 @@ mod tests {
     fn test_parse_leap_year_long() {
         // pass when given valid finnishSSN with leap year, divisible by 100 and by 400
         assert_eq!(
-            Ssn::parse("290200A248A").unwrap(),
+            Ssn::try_from("290200A248A").unwrap(),
             Ssn {
                 day: 29,
                 month: 2,
@@ -1099,14 +1116,16 @@ mod tests {
     #[test]
     fn test_parse_leading_whitespace() {
         assert!(
-            Ssn::parse("010114A173M ").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            Ssn::try_from("010114A173M ").unwrap_err()
+                == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given SSN longer than 11 chars, bogus in the end"
         );
     }
     #[test]
     fn test_parse_trailing_whitespace() {
         assert!(
-            Ssn::parse(" 010114A173M").unwrap_err() == ParseError::Syntax("Invalid length", 0, 12),
+            Ssn::try_from(" 010114A173M").unwrap_err()
+                == ParseError::Syntax("Invalid length", 0, 12),
             "fail when given SSN longer than 11 chars, bogus in the beginning"
         );
     }
@@ -1114,7 +1133,7 @@ mod tests {
     #[test]
     fn test_generate() {
         let ssn = Ssn::generate();
-        assert!(Ssn::parse(&ssn).is_ok());
+        assert!(Ssn::try_from(ssn.as_str()).is_ok());
     }
 
     #[test]
@@ -1122,7 +1141,7 @@ mod tests {
         let pattern = SsnPattern::parse("010197-100P").unwrap();
         let mut iter = Ssn::iter(&pattern);
         let generated = iter.next().unwrap();
-        assert!(Ssn::parse(&generated).is_ok());
+        assert!(Ssn::try_from(generated.as_str()).is_ok());
     }
 
     #[test]
@@ -1131,7 +1150,7 @@ mod tests {
         let mut iter = Ssn::iter(&pattern);
         let generated = iter.next().unwrap();
         assert!(
-            Ssn::parse(&generated).is_ok(),
+            Ssn::try_from(generated.as_str()).is_ok(),
             "invalid generated {}",
             generated
         );
@@ -1232,7 +1251,7 @@ mod tests {
                 let generated = Ssn::generate_by_pattern(pattern).unwrap();
                 let matcher = Regex::new($value.replace("?", ".").as_str()).unwrap();
                 assert!(matcher.is_match(&generated), "retain expected values");
-                assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN: {}", generated);
+                assert!(Ssn::try_from(generated.as_str()).is_ok(), "generate valid SSN: {}", &generated);
             }
         )*}
     }
@@ -1297,7 +1316,7 @@ mod tests {
     //         println!("{} {}", i, generated);
     //         let matcher = Regex::new(p.replace("?", ".").as_str()).unwrap();
     //         assert!(matcher.is_match(&generated), "retain expected values");
-    //         assert!(Ssn::parse(&generated).is_ok(), "generate valid SSN");
+    //         assert!(Ssn::try_from(&generated).is_ok(), "generate valid SSN");
     //     }
     // }
 }

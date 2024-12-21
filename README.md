@@ -25,7 +25,7 @@ extern crate hetu;
 use hetu::Ssn;
 
 pub fn main() {
-    if Ssn::parse("121212-121D").is_ok() {
+    if Ssn::try_from("121212-121D").is_ok() {
         println!("Valid")
     } else {
         println!("Invalid")
