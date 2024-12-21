@@ -52,7 +52,7 @@ use hetu::Ssn;
 use hetu::SsnPattern;
 
 pub fn main() {
-    let pattern = SsnPattern::parse("111111-111?").unwrap();
+    let pattern = SsnPattern::try_from("111111-111?").unwrap();
     println!("{}", Ssn::generate_by_pattern(pattern).unwrap());
 }
 ```
