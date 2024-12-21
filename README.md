@@ -25,7 +25,7 @@ extern crate hetu;
 use hetu::Ssn;
 
 pub fn main() {
-    if Ssn::parse("121212-121D").is_ok() {
+    if Ssn::try_from("121212-121D").is_ok() {
         println!("Valid")
     } else {
         println!("Invalid")
@@ -91,5 +91,11 @@ $ hetu -p "121212-???D"
 $ hetu -p "??????-???D"
 241151-028D
 ```
+
+## Related projects
+
+* [personnummer](https://crates.io/crates/personnummer)
+* [kennitala](https://crates.io/crates/kennitala)
+* [amka](https://crates.io/crates/amka)
 
 [1]: https://dvv.fi/en/personal-identity-code

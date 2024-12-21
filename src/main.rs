@@ -6,6 +6,7 @@ use hetu::ErrorIndexRange;
 use hetu::ParseError;
 use hetu::Ssn;
 use hetu::SsnPattern;
+use std::convert::TryFrom;
 use std::env;
 use std::io::{self, BufRead};
 use std::process;
@@ -27,14 +28,14 @@ pub fn main() {
             parse(&(line.unwrap()));
         }
     } else if args.is_empty() {
-        generate_and_print(&SsnPattern::new());
+        generate_and_print(&SsnPattern::default());
     } else {
         parse(&args[0]);
     }
 }
 
 fn generate(pattern: &str) {
-    match SsnPattern::parse(pattern) {
+    match SsnPattern::try_from(pattern) {
         Err(ref err) => {
             eprintln!(
                 "Error: {}\n\n  {}\n  {}",
@@ -59,7 +60,7 @@ fn generate_and_print(pattern: &SsnPattern) {
 }
 
 fn parse(ssn: &str) {
-    match Ssn::parse(ssn) {
+    match Ssn::try_from(ssn) {
         Ok(_) => (),
         Err(ref err) => {
             eprintln!(
