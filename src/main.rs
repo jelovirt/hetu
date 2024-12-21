@@ -27,7 +27,7 @@ pub fn main() {
             parse(&(line.unwrap()));
         }
     } else if args.is_empty() {
-        generate_and_print(&SsnPattern::new());
+        generate_and_print(&SsnPattern::default());
     } else {
         parse(&args[0]);
     }

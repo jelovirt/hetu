@@ -628,7 +628,7 @@ fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError>
 }
 
 /// Pattern that defines generated Ssn.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
     pub d2: Option<u8>,
@@ -642,9 +642,8 @@ pub struct SsnPattern {
     pub i3: Option<u8>,
     pub check: Option<char>,
 }
-
-impl SsnPattern {
-    pub fn new() -> SsnPattern {
+impl Default for SsnPattern {
+    fn default() -> SsnPattern {
         SsnPattern {
             d1: None,
             d2: None,
@@ -657,6 +656,37 @@ impl SsnPattern {
             i2: None,
             i3: None,
             check: None,
+        }
+    }
+}
+
+impl SsnPattern {
+    pub fn new(
+        d1: Option<u8>,
+        d2: Option<u8>,
+        m1: Option<u8>,
+        m2: Option<u8>,
+        y1: Option<u8>,
+        y2: Option<u8>,
+        sep: Option<char>,
+        i1: Option<u8>,
+        i2: Option<u8>,
+        i3: Option<u8>,
+        check: Option<char>,
+    ) -> SsnPattern {
+        // TODO: move validation here
+        SsnPattern {
+            d1,
+            d2,
+            m1,
+            m2,
+            y1,
+            y2,
+            sep,
+            i1,
+            i2,
+            i3,
+            check,
         }
     }
     fn parse_char(chars: &str, index: usize) -> Result<Option<u8>, ParseError> {
@@ -758,19 +788,9 @@ impl SsnPattern {
             _ => {}
         }
 
-        Ok(SsnPattern {
-            d1,
-            d2,
-            m1,
-            m2,
-            y1,
-            y2,
-            sep,
-            i1,
-            i2,
-            i3,
-            check,
-        })
+        Ok(SsnPattern::new(
+            d1, d2, m1, m2, y1, y2, sep, i1, i2, i3, check,
+        ))
     }
 }
 
