@@ -668,6 +668,7 @@ fn to_separator(year: usize, rng: &mut ThreadRng) -> Result<char, GenerateError>
 /// Ssn::generate_by_pattern(&pattern);
 /// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Default)]
 pub struct SsnPattern {
     pub d1: Option<u8>,
     pub d2: Option<u8>,
@@ -680,23 +681,6 @@ pub struct SsnPattern {
     pub i2: Option<u8>,
     pub i3: Option<u8>,
     pub check: Option<char>,
-}
-impl Default for SsnPattern {
-    fn default() -> SsnPattern {
-        SsnPattern {
-            d1: None,
-            d2: None,
-            m1: None,
-            m2: None,
-            y1: None,
-            y2: None,
-            sep: None,
-            i1: None,
-            i2: None,
-            i3: None,
-            check: None,
-        }
-    }
 }
 
 impl<'a> TryFrom<&'a str> for SsnPattern {
