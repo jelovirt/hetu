@@ -276,7 +276,7 @@ pub fn generate_by_pattern_with_fixed_checksum(
                 let year = century + decade * 10 + y2;
                 // Unless the pattern explicitly sets the year to be before 1850, don't generate years before 1850.
                 println!("year: {}", year);
-                if year < 1850 && !(&pattern.sep == &Some('+') && &pattern.y1.unwrap_or(6u8) <= &5)
+                if year < 1850 && !(pattern.sep == Some('+') && pattern.y1.unwrap_or(6u8) <= 5)
                 {
                     continue;
                 }
